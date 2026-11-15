@@ -1,0 +1,64 @@
+/* Couverture de livre en cuir. Les tailles sont exprimées en « cqw »
+   (pourcentage de la largeur de la couverture) pour s'adapter à toute taille. */
+
+.couverture {
+  --cuir-livre: #5a2415;
+  container-type: inline-size;
+  position: absolute;
+  inset: 0;
+  border-radius: 2% 5% 5% 2% / 1.5% 3.5% 3.5% 1.5%;
+  overflow: hidden;
+  background:
+    var(--grain),
+    /* dos du livre, plus sombre, à gauche */
+    linear-gradient(to right, rgba(0, 0, 0, 0.45) 0 7%, rgba(255, 255, 255, 0.08) 8%, transparent 11%),
+    radial-gradient(
+      ellipse at 40% 30%,
+      color-mix(in srgb, var(--cuir-livre), white 12%),
+      var(--cuir-livre) 55%,
+      color-mix(in srgb, var(--cuir-livre), black 45%)
+    );
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Double filet doré */
+.couverture__cadre {
+  position: absolute;
+  inset: 5% 6% 5% 13%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6cqw;
+  padding: 6cqw 4cqw;
+  border: 0.9cqw solid var(--or);
+  outline: 0.4cqw solid rgba(230, 198, 106, 0.6);
+  outline-offset: -2.6cqw;
+  border-radius: 1.5cqw;
+}
+
+.couverture__medaillon {
+  width: 36cqw;
+  height: 36cqw;
+  display: grid;
+  place-items: center;
+  color: var(--or-clair);
+  border: 0.7cqw solid var(--or);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230, 198, 106, 0.22), transparent 70%);
+}
+
+.couverture__medaillon svg {
+  width: 62%;
+  height: 62%;
+}
+
+.couverture__titre {
+  font-family: var(--police-titre);
+  font-size: 8.5cqw;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--or-clair);
+  text-shadow: 0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.6);
+}

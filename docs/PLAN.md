@@ -6,7 +6,7 @@
 |---|---|---|
 | (a) | Squelette PWA, un livre + sommaire, données fictives | ✅ fait |
 | (b) | Pagination automatique des recettes, page tournée (swipe / tap), défilement rapide de pages à l'ouverture d'un chapitre | ✅ fait |
-| (c) | Intro : chute du livre, impact, ouverture, zoom, flash (GSAP) + version courte `prefers-reduced-motion` | à faire |
+| (c) | Intro : chute du livre, impact, ouverture, zoom, flash (GSAP) + version courte `prefers-reduced-motion` | ✅ fait |
 | (d) | Supabase : auth (email + Google), tables + RLS, synchro, cache hors ligne, images compressées | à faire |
 | (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | à faire |
 | (f) | Profil, amis (pseudo, lien, QR code), transmissions, réalisations, fil d'activité, pastille | à faire |

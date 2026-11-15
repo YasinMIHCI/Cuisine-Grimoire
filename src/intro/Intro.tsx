@@ -1,0 +1,266 @@
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import type { Livre } from '../types';
+import { Couverture } from '../composants/Couverture';
+import { PageRunes } from './PageRunes';
+import './intro.css';
+
+interface Props {
+  /** Le livre dont on montre la couverture (dernier livre ouvert). */
+  livre: Livre;
+  /** Appelé quand l'intro est terminée : l'appli peut être utilisée. */
+  surFin: () => void;
+}
+
+// Moments clés de l'animation (en secondes)
+const T_IMPACT = 1.5;
+const T_OUVERTURE = 1.72;
+const T_ZOOM = 2.9;
+const T_FLASH = 4.1;
+const T_REVELATION = 4.6;
+
+const NB_POUSSIERES = 26;
+const NB_ETINCELLES = 12;
+
+/**
+ * Animation d'introduction, jouée à chaque lancement (~5,5 s) :
+ * chute du livre vue du dessus → impact (poussière, secousse) → le livre
+ * s'ouvre sur une page de runes → zoom → flash → l'appli apparaît.
+ *
+ * Seuls `transform` et `opacity` sont animés (GSAP), pour rester à 60 images/s.
+ * Un tap pendant l'intro saute directement au flash.
+ */
+export function Intro({ livre, surFin }: Props) {
+  const refScene = useRef<HTMLDivElement>(null);
+  const refChronologie = useRef<gsap.core.Timeline | null>(null);
+  const refSurFin = useRef(surFin);
+  refSurFin.current = surFin;
+
+  // Caractéristiques aléatoires de chaque volute de poussière et étincelle
+  const poussieres = useMemo(
+    () =>
+      Array.from({ length: NB_POUSSIERES }, (_, i) => {
+        // Les volutes partent surtout vers les côtés (gauche / droite)
+        const cote = i % 2 === 0 ? 0 : Math.PI;
+        return {
+          angle: cote + (Math.random() - 0.5) * 2.3,
+          distance: 0.5 + Math.random() * 1.1,
+          taille: 0.22 + Math.random() * 0.33,
+          duree: 0.9 + Math.random() * 0.7,
+        };
+      }),
+    [],
+  );
+  const etincelles = useMemo(
+    () =>
+      Array.from({ length: NB_ETINCELLES }, () => ({
+        gauche: 12 + Math.random() * 76,
+        haut: 25 + Math.random() * 60,
+        montee: 0.15 + Math.random() * 0.25,
+        retard: Math.random() * 1.2,
+      })),
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const scene = refScene.current;
+    if (!scene) return;
+    let annule = false;
+    const terminer = () => refSurFin.current();
+
+    const contexte = gsap.context(() => {
+      const chrono = gsap.timeline({ paused: true, onComplete: terminer });
+      refChronologie.current = chrono;
+      // En développement, la chronologie est accessible depuis la console du navigateur
+      if (import.meta.env.DEV) Object.assign(window, { chronoIntro: chrono });
+
+      // --- Version courte (prefers-reduced-motion) : couverture puis fondu ----
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        gsap.set('.intro__ombre', { opacity: 0.5 });
+        chrono.to(scene, { opacity: 0, duration: 0.5, ease: 'none' }, 0.8);
+        return;
+      }
+
+      const livreEl = scene.querySelector<HTMLElement>('.intro__livre')!;
+      const largeur = livreEl.offsetWidth;
+      const hauteur = livreEl.offsetHeight;
+
+      // 1. Chute : le livre s'éloigne de la caméra (il rapetisse) en tournoyant
+      chrono.fromTo(
+        livreEl,
+        {
+          scale: 3.4,
+          rotation: -32,
+          rotationX: 16,
+          rotationY: -12,
+          xPercent: -18,
+          yPercent: -12,
+          transformPerspective: 900,
+        },
+        {
+          scale: 1,
+          rotation: 4,
+          rotationX: 0,
+          rotationY: 0,
+          xPercent: 0,
+          yPercent: 0,
+          duration: T_IMPACT,
+          ease: 'power2.in', // accélération de la chute
+          force3D: true,
+        },
+        0,
+      );
+      chrono.fromTo(livreEl, { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0);
+      // L'ombre au sol se resserre et fonce à mesure que le livre approche
+      chrono.fromTo(
+        '.intro__ombre',
+        { scale: 1.9, x: largeur * 0.3, y: hauteur * 0.32, opacity: 0 },
+        { scale: 1.06, x: largeur * 0.03, y: hauteur * 0.03, opacity: 0.65, duration: T_IMPACT, ease: 'power2.in' },
+        0,
+      );
+
+      // 2. Impact : écrasement, secousse de caméra, onde et nuage de poussière
+      chrono.to(livreEl, { scale: 0.96, rotation: 0, duration: 0.07, ease: 'power1.out' }, T_IMPACT);
+      chrono.to(livreEl, { scale: 1, duration: 0.3, ease: 'back.out(3)' }, T_IMPACT + 0.07);
+      chrono.to(
+        '.intro__camera',
+        {
+          keyframes: [
+            { x: -10, y: 7 },
+            { x: 9, y: -6 },
+            { x: -6, y: -4 },
+            { x: 4, y: 3 },
+            { x: -2, y: 1 },
+            { x: 0, y: 0 },
+          ],
+          duration: 0.45,
+          ease: 'none',
+        },
+        T_IMPACT,
+      );
+      chrono.fromTo(
+        '.intro__onde',
+        { scale: 0.6, opacity: 0.55 },
+        { scale: 2.8, opacity: 0, duration: 0.9, ease: 'power2.out' },
+        T_IMPACT,
+      );
+      gsap.utils.toArray<HTMLElement>('.intro__poussiere').forEach((volute, i) => {
+        const p = poussieres[i];
+        const x0 = Math.cos(p.angle) * largeur * 0.5;
+        const y0 = Math.sin(p.angle) * hauteur * 0.5;
+        chrono.fromTo(
+          volute,
+          { x: x0, y: y0, scale: 0.3 },
+          {
+            x: x0 + Math.cos(p.angle) * largeur * p.distance,
+            y: y0 + Math.sin(p.angle) * largeur * p.distance * 0.6,
+            scale: 1.6,
+            duration: p.duree,
+            ease: 'power2.out',
+          },
+          T_IMPACT,
+        );
+        chrono.to(volute, { opacity: 0.5, duration: 0.1 }, T_IMPACT);
+        chrono.to(volute, { opacity: 0, duration: p.duree - 0.1, ease: 'power1.in' }, T_IMPACT + 0.1);
+      });
+
+      // 3. Sous le choc, la couverture bascule : le livre s'ouvre sur les runes.
+      //    Le livre glisse d'une demi-largeur pour que la double page reste centrée.
+      chrono.fromTo(
+        '.intro__plat',
+        { rotationY: 0, transformPerspective: 1100 },
+        { rotationY: -180, duration: 1, ease: 'power2.out', force3D: true },
+        T_OUVERTURE,
+      );
+      chrono.to(livreEl, { xPercent: 50, duration: 1, ease: 'power2.out' }, T_OUVERTURE);
+      chrono.to('.intro__ombre', { scaleX: 2.1, x: 0, duration: 1, ease: 'power2.out' }, T_OUVERTURE);
+
+      // Touches magiques : lueur dorée sur la page et étincelles qui montent
+      chrono.to('.intro__lueur', { opacity: 1, duration: 1.4, ease: 'power1.in' }, T_OUVERTURE + 0.8);
+      gsap.utils.toArray<HTMLElement>('.intro__etincelle').forEach((etincelle, i) => {
+        const e = etincelles[i];
+        const debut = T_OUVERTURE + 0.6 + e.retard;
+        chrono.fromTo(etincelle, { y: 0 }, { y: -hauteur * e.montee, duration: 1.3, ease: 'power1.out' }, debut);
+        chrono.to(etincelle, { opacity: 1, duration: 0.3 }, debut);
+        chrono.to(etincelle, { opacity: 0, duration: 0.8 }, debut + 0.5);
+      });
+
+      // 4. La caméra plonge vers la page de droite
+      const centrePageX = scene.clientWidth / 2 + largeur / 2;
+      const zoom = Math.max(scene.clientWidth / largeur, scene.clientHeight / hauteur) * 1.3;
+      gsap.set('.intro__camera', { transformOrigin: `${centrePageX}px 50%` });
+      chrono.to('.intro__camera', { scale: zoom, duration: 1.65, ease: 'power2.in', force3D: true }, T_ZOOM);
+
+      // 5. Flash blanc doré plein écran
+      chrono.addLabel('flash', T_FLASH);
+      chrono.fromTo('.intro__flash', { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power1.in' }, T_FLASH);
+
+      // 6. Derrière le flash, on retire la scène : l'appli est dessous
+      chrono.set('.intro__camera', { autoAlpha: 0 }, T_REVELATION);
+      chrono.set(scene, { backgroundColor: 'transparent' }, T_REVELATION);
+      // Le blanc tient un court instant, puis se dissipe sur l'appli
+      chrono.to('.intro__flash', { opacity: 0, duration: 0.8, ease: 'power1.out' }, T_REVELATION + 0.1);
+    }, scene);
+
+    // On attend la police du titre et deux images, pour démarrer sans à-coup
+    const attente = new Promise((resoudre) => setTimeout(resoudre, 700));
+    Promise.race([document.fonts?.ready ?? attente, attente]).then(() => {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (!annule) refChronologie.current?.play();
+        }),
+      );
+    });
+
+    return () => {
+      annule = true;
+      contexte.revert();
+    };
+  }, [poussieres, etincelles]);
+
+  /** Un tap pendant l'intro saute directement au flash final. */
+  const passer = () => {
+    const chrono = refChronologie.current;
+    if (chrono && chrono.labels.flash !== undefined && chrono.time() < chrono.labels.flash) {
+      chrono.play('flash');
+    }
+  };
+
+  return (
+    <div className="intro" ref={refScene} onPointerDown={passer} role="presentation">
+      {/* La « caméra » : tout ce qu'elle contient tremble et zoome ensemble */}
+      <div className="intro__camera">
+        <div className="intro__sol" />
+        <div className="intro__ombre" />
+        <div className="intro__onde" />
+        {poussieres.map((p, i) => (
+          <div
+            key={i}
+            className="intro__poussiere"
+            style={{ width: `${p.taille * 100}vmin`, height: `${p.taille * 100}vmin` }}
+          />
+        ))}
+
+        <div className="intro__livre">
+          {/* Bloc de pages, avec la page de runes sur le dessus */}
+          <div className="intro__page">
+            <PageRunes />
+            <div className="intro__lueur" />
+            {etincelles.map((e, i) => (
+              <span key={i} className="intro__etincelle" style={{ left: `${e.gauche}%`, top: `${e.haut}%` }} />
+            ))}
+          </div>
+          {/* Plat de couverture : pivote autour du dos (bord gauche) */}
+          <div className="intro__plat">
+            <div className="intro__plat-face">
+              <Couverture livre={livre} />
+            </div>
+            <div className="intro__plat-face intro__plat-face--interieur" style={{ '--cuir-livre': livre.couleurCuir } as React.CSSProperties} />
+          </div>
+        </div>
+      </div>
+
+      <div className="intro__flash" />
+    </div>
+  );
+}
