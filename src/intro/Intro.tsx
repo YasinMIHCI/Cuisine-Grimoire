@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import type { Livre } from '../types';
 import { Couverture } from '../composants/Couverture';
+import { DecorTable } from './DecorTable';
 import { PageRunes } from './PageRunes';
 import './intro.css';
 
@@ -30,7 +31,7 @@ const ECART_FEUILLES = 0.13;
 
 /**
  * Animation d'introduction, jouée à chaque lancement (~5,6 s) :
- * chute du livre vue du dessus → impact (poussière, secousse) → le livre
+ * chute du livre vue du dessus, sur une table garnie d'objets → impact (poussière, secousse) → le livre
  * s'ouvre et ses pages de runes défilent sans fin → zoom sur ce défilement
  * → flash → l'appli apparaît.
  *
@@ -145,6 +146,14 @@ export function Intro({ livre, surFin }: Props) {
         },
         T_IMPACT,
       );
+      // Les objets de la table sursautent sous le choc
+      gsap.utils.toArray<HTMLElement>('.intro__objet').forEach((objet, i) => {
+        chrono.to(
+          objet,
+          { keyframes: [{ y: -7 - (i % 3) * 3, scale: 1.05 }, { y: 0, scale: 1 }], duration: 0.32, ease: 'power1.out' },
+          T_IMPACT + 0.02 + (i % 4) * 0.02,
+        );
+      });
       chrono.fromTo(
         '.intro__onde',
         { scale: 0.6, opacity: 0.55 },
@@ -259,6 +268,7 @@ export function Intro({ livre, surFin }: Props) {
       {/* La « caméra » : tout ce qu'elle contient tremble et zoome ensemble */}
       <div className="intro__camera">
         <div className="intro__sol" />
+        <DecorTable />
         <div className="intro__ombre" />
         <div className="intro__onde" />
         {poussieres.map((p, i) => (

@@ -167,12 +167,33 @@ ul {
   mask-image: linear-gradient(to right, #000 0 62%, transparent 62% 66%, #000 66% 88%, transparent 88%);
 }
 
+/* Trois motifs de lignes, pour que les pages qui défilent ne soient pas identiques */
+.intercalaire--1 {
+  -webkit-mask-image: linear-gradient(to right, #000 0 40%, transparent 40% 45%, #000 45% 96%, transparent 96%);
+  mask-image: linear-gradient(to right, #000 0 40%, transparent 40% 45%, #000 45% 96%, transparent 96%);
+}
+
+.intercalaire--2 {
+  margin-top: 120px;
+  height: calc(100% - 174px);
+  -webkit-mask-image: linear-gradient(to right, #000 0 78%, transparent 78%);
+  mask-image: linear-gradient(to right, #000 0 78%, transparent 78%);
+}
+
+.intercalaire--3 {
+  -webkit-mask-image: linear-gradient(to right, transparent 0 8%, #000 8% 55%, transparent 55% 60%, #000 60%);
+  mask-image: linear-gradient(to right, transparent 0 8%, #000 8% 55%, transparent 55% 60%, #000 60%);
+}
+
 /* Parchemin allégé (feuilles intercalaires, versos) : un seul dégradé, sans
    grain ni ombres, donc très rapide à dessiner pendant les animations */
 .parchemin-simple {
   overflow: hidden;
   border-radius: 3px 8px 8px 3px;
-  background: radial-gradient(ellipse at center, var(--parchemin-clair) 0%, var(--parchemin) 62%, var(--parchemin-fonce) 100%);
+  background:
+    /* ombre près de la reliure et sur la tranche : donne du relief aux feuilles en vol */
+    linear-gradient(to right, rgba(40, 20, 5, 0.3), transparent 28%, transparent 82%, rgba(40, 20, 5, 0.14)),
+    radial-gradient(ellipse at center, var(--parchemin-clair) 0%, var(--parchemin) 62%, var(--parchemin-fonce) 100%);
 }
 
 /* --- La page de parchemin -------------------------------------------------- */

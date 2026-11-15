@@ -19,7 +19,7 @@
   will-change: transform;
 }
 
-/* Le sol : plancher sombre vu du dessus (déborde pour la secousse de caméra) */
+/* La table : planches sombres vues du dessus (déborde pour la secousse de caméra) */
 .intro__sol {
   position: absolute;
   inset: -6%;
@@ -32,6 +32,35 @@
     /* veinage */
     repeating-linear-gradient(90deg, rgba(255, 220, 160, 0.03) 0 7px, transparent 7px 19px),
     linear-gradient(#4a301c, #3a2415);
+}
+
+/* Objets posés sur la table (bougie, plume, épices…) */
+.intro__objet {
+  position: absolute;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.55));
+}
+
+.intro__objet svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* La flamme de la bougie vacille doucement */
+.intro__halo {
+  animation: vacillement 1.7s ease-in-out infinite alternate;
+}
+
+@keyframes vacillement {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* --- Le livre -------------------------------------------------------------- */

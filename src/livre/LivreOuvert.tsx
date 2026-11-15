@@ -7,10 +7,10 @@ import { PageRecette } from './PageRecette';
 import { TourneurDePages, type Transition } from './TourneurDePages';
 
 // --- Réglages des animations ------------------------------------------------
-/** Ouverture d'un chapitre : 4 feuilles qui défilent, 2 s au total. */
-const OUVERTURE_CHAPITRE: Transition = { sens: 'avant', intercalaires: 3, duree: 0.8, decalage: 0.4 };
+/** Ouverture d'un chapitre : une trentaine de pages défilent à toute vitesse (2 s). */
+const OUVERTURE_CHAPITRE: Transition = { sens: 'avant', intercalaires: 30, duree: 0.38, decalage: 0.054 };
 /** Retour au sommaire : défilement plus bref, en sens inverse (~1 s). */
-const RETOUR_SOMMAIRE: Transition = { sens: 'arriere', intercalaires: 2, duree: 0.6, decalage: 0.2 };
+const RETOUR_SOMMAIRE: Transition = { sens: 'arriere', intercalaires: 10, duree: 0.38, decalage: 0.06 };
 /** Page tournée à la main (< 1 s). */
 const PAGE_SUIVANTE: Transition = { sens: 'avant', intercalaires: 0, duree: 0.7, decalage: 0 };
 const PAGE_PRECEDENTE: Transition = { sens: 'arriere', intercalaires: 0, duree: 0.7, decalage: 0 };
