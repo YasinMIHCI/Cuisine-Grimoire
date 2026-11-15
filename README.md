@@ -23,8 +23,8 @@ npm run build
 npm run preview
 ```
 
-## Déploiement (Vercel)
+## Déploiement (GitHub Pages)
 
-Importer le dépôt sur vercel.com : Vite est détecté automatiquement
-(commande `npm run build`, dossier `dist`). Chaque branche poussée reçoit une URL
-d'aperçu en HTTPS, utilisable pour tester sur téléphone.
+Chaque push sur `main` déclenche le workflow `.github/workflows/deployer.yml`, qui
+construit l'appli et la publie sur `https://<compte>.github.io/<dépôt>/`.
+À activer une seule fois : Settings → Pages → Source : « GitHub Actions ».

@@ -2,8 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Chemin de base de l'appli : « / » en local, « /<dépôt>/ » sur GitHub Pages
+// (fourni par le workflow de déploiement via la variable CHEMIN_BASE).
+const cheminBase = process.env.CHEMIN_BASE ?? '/';
+
 // Configuration Vite : React + PWA (manifest, service worker, hors ligne)
 export default defineConfig({
+  base: cheminBase,
   plugins: [
     react(),
     VitePWA({
@@ -15,7 +20,8 @@ export default defineConfig({
         short_name: 'Grimoire',
         description: 'Vos recettes de cuisine dans un vieux grimoire magique.',
         lang: 'fr',
-        start_url: '/',
+        start_url: cheminBase,
+        scope: cheminBase,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#1d120b',
