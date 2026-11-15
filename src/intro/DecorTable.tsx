@@ -1,5 +1,7 @@
-// Objets posés sur la table autour du grimoire, vus du dessus.
-// Tout est dessiné en SVG (boîte de 100 × 100 par objet).
+// Décor de la table autour du grimoire, vu du dessus : un bureau de sorcier-cuisinier.
+// Les objets ne sont pas semés au hasard : ils forment quatre ensembles rangés
+// aux coins de la table (livres et bougies, fioles, nécessaire d'écriture, coin
+// cuisine). Tout est dessiné en SVG ; chaque objet tient dans une boîte de 100 × 100.
 import type { CSSProperties, ReactNode } from 'react';
 
 const TRAIT = '#2a170c';
@@ -7,7 +9,7 @@ const TRAIT = '#2a170c';
 /** Bougie allumée sur sa coupelle, avec un halo de lumière. */
 const Bougie = (
   <>
-    <circle className="intro__halo" cx="50" cy="50" r="49" fill="url(#halo-bougie)" />
+    <circle className="intro__halo" cx="50" cy="50" r="80" fill="url(#halo-bougie)" />
     <circle cx="50" cy="50" r="27" fill="#8a6a2a" stroke="#4d3812" strokeWidth="2" />
     <circle cx="50" cy="50" r="21" fill="#a8843a" />
     <path d="M36 47c0-10 8-16 16-15s14 8 12 18-10 15-18 13-10-8-10-16z" fill="#f1e5c4" stroke="#c9b88d" />
@@ -69,17 +71,6 @@ const Cuillere = (
   </>
 );
 
-/** Fiole de potion couchée, fermée par un bouchon de liège. */
-const Fiole = (
-  <>
-    <circle cx="42" cy="56" r="28" fill="#2f6b4f" stroke={TRAIT} strokeWidth="2" />
-    <path d="M17 60a26 26 0 0 0 50 2c-12 5-36 5-50-2z" fill="#58c08a" opacity="0.85" />
-    <path d="M26 42c4-7 12-11 20-10" fill="none" stroke="#bfe8d2" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
-    <path d="M58 32l12-12 10 10-12 12z" fill="#3a7d5d" stroke={TRAIT} strokeWidth="2" />
-    <path d="M71 17l8-8 12 12-8 8z" fill="#b08a5a" stroke={TRAIT} strokeWidth="1.5" />
-  </>
-);
-
 /** Parchemin roulé, noué d'un ruban rouge. */
 const Parchemin = (
   <>
@@ -100,22 +91,6 @@ const Cle = (
   </g>
 );
 
-/** Quelques pièces d'or. */
-const Pieces = (
-  <g stroke="#7a5a14" strokeWidth="2">
-    {[
-      [36, 62],
-      [62, 58],
-      [50, 36],
-    ].map(([x, y], i) => (
-      <g key={i}>
-        <circle cx={x} cy={y} r="19" fill="#d9b34a" />
-        <circle cx={x} cy={y} r="12" fill="none" stroke="#a8842a" strokeWidth="1.5" />
-      </g>
-    ))}
-  </g>
-);
-
 /** Étoile de badiane (anis étoilé). */
 const Badiane = (
   <g>
@@ -129,70 +104,181 @@ const Badiane = (
   </g>
 );
 
-/** Gousse d'ail. */
-const Ail = (
+/** Place un objet (boîte 100 × 100) dans un ensemble : position, échelle, rotation. */
+function Pose({ x, y, e = 1, r = 0, children }: { x: number; y: number; e?: number; r?: number; children: ReactNode }) {
+  return <g transform={`translate(${x} ${y}) scale(${e}) rotate(${r} 50 50)`}>{children}</g>;
+}
+
+/** Livre fermé vu du dessus : tranche des pages, couverture, dos et filet doré. */
+function LivreFerme({ x, y, l, h, r, cuir, dos }: { x: number; y: number; l: number; h: number; r: number; cuir: string; dos: string }) {
+  return (
+    <g transform={`rotate(${r} ${x + l / 2} ${y + h / 2})`}>
+      <rect x={x + 5} y={y + 5} width={l} height={h} rx="3" fill="#e2cf9f" stroke="#8a7445" />
+      <rect x={x} y={y} width={l} height={h} rx="4" fill={cuir} stroke={TRAIT} strokeWidth="2" />
+      <rect x={x} y={y} width={l * 0.12} height={h} rx="3" fill={dos} />
+      <rect x={x + l * 0.2} y={y + 8} width={l * 0.7} height={h - 16} rx="2" fill="none" stroke="#c9a23f" strokeWidth="1.5" />
+    </g>
+  );
+}
+
+/** Flacon debout vu du dessus : verre, liquide, goulot et bouchon de liège. */
+function Flacon({ cx, cy, r, verre, liquide }: { cx: number; cy: number; r: number; verre: string; liquide: string }) {
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={r} fill={verre} stroke={TRAIT} strokeWidth="2" />
+      <circle cx={cx} cy={cy} r={r * 0.78} fill={liquide} opacity="0.9" />
+      <circle cx={cx} cy={cy} r={r * 0.42} fill={verre} stroke={TRAIT} strokeWidth="1.5" />
+      <circle cx={cx} cy={cy} r={r * 0.28} fill="#b08a5a" stroke="#6b4f2c" />
+      <path
+        d={`M${cx - r * 0.62} ${cy - r * 0.2}a${r * 0.66} ${r * 0.66} 0 0 1 ${r * 0.5} -${r * 0.45}`}
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+    </g>
+  );
+}
+
+/** Petit cristal taillé. */
+function Cristal({ x, y, r, couleur }: { x: number; y: number; r: number; couleur: string }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${r})`}>
+      <path d="M0-14L9-5 6 13-6 13-9-5z" fill={couleur} stroke={TRAIT} strokeWidth="1.5" />
+      <path d="M0-14v27M-9-5L0 1 9-5" fill="none" stroke="#fff" strokeWidth="1" opacity="0.6" />
+    </g>
+  );
+}
+
+// --- Les quatre ensembles (boîte de 200 × 200) -------------------------------
+
+/** Pile de livres bien alignée, une bougie posée dessus et une autre à côté. */
+const PileDeLivres = (
   <>
-    <path d="M50 14c6 12 30 22 30 46 0 18-14 28-30 28S20 78 20 60c0-24 24-34 30-46z" fill="#efe7d6" stroke="#a89b80" strokeWidth="2" />
-    <path d="M50 16c-4 22-8 44-4 70M50 16c4 22 8 44 4 70M36 40c-6 14-6 30 0 42M64 40c6 14 6 30 0 42" fill="none" stroke="#c9bda2" strokeWidth="1.5" />
-    <path d="M50 14c-1-4 1-8 4-10" fill="none" stroke="#a89b80" strokeWidth="3" strokeLinecap="round" />
+    <LivreFerme x={14} y={34} l={128} h={158} r={-5} cuir="#2f4a3a" dos="#1f3327" />
+    <LivreFerme x={26} y={46} l={112} h={138} r={3} cuir="#6b2418" dos="#4a160d" />
+    <LivreFerme x={38} y={60} l={94} h={116} r={-2} cuir="#26324f" dos="#182036" />
+    <circle cx="90" cy="122" r="13" fill="none" stroke="#c9a23f" strokeWidth="1.5" />
+    <path d="M90 113l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7-5.9-3.7-5.9 3.7 1.7-6.7-5.3-4.4 6.9-.5z" fill="#c9a23f" />
+    <Pose x={96} y={-4} e={0.72}>{Bougie}</Pose>
+    <Pose x={140} y={104} e={0.56}>{Bougie}</Pose>
+    <Pose x={150} y={150} e={0.44}>{Bougie}</Pose>
   </>
 );
 
-interface Objet {
+/** Fioles serrées les unes contre les autres, boule de cristal, cristaux et rouleaux. */
+const Alchimie = (
+  <>
+    <Flacon cx={52} cy={48} r={30} verre="#2f6b4f" liquide="#58c08a" />
+    <Flacon cx={104} cy={36} r={20} verre="#6b2a2a" liquide="#d05a4a" />
+    <Flacon cx={96} cy={84} r={23} verre="#3d3470" liquide="#8f7fe0" />
+    <Flacon cx={46} cy={98} r={16} verre="#6a5a1e" liquide="#e0c040" />
+    {/* Boule de cristal sur son socle de laiton */}
+    <circle cx="156" cy="62" r="34" fill="#8a6a2a" stroke="#4d3812" strokeWidth="2" />
+    <circle cx="156" cy="62" r="27" fill="url(#boule-cristal)" stroke="#231a4a" strokeWidth="1.5" />
+    <path d="M140 50a20 20 0 0 1 16-10" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" opacity="0.7" />
+    <Cristal x={136} y={116} r={-18} couleur="#9fe0e8" />
+    <Cristal x={162} y={120} r={14} couleur="#c9a0f0" />
+    {/* Deux rouleaux rangés côte à côte */}
+    <Pose x={20} y={112} e={1.5} r={-4}>{Parchemin}</Pose>
+    <Pose x={30} y={136} e={1.4} r={-4}>{Parchemin}</Pose>
+  </>
+);
+
+/** Nécessaire d'écriture : lettre commencée, enveloppe cachetée, plume dans l'encrier, clé. */
+const Ecriture = (
+  <>
+    <g transform="rotate(-7 90 100)">
+      <rect x="30" y="14" width="124" height="172" rx="2" fill="#ead9b0" stroke="#a8905a" strokeWidth="1.5" />
+      <g fill="none" stroke="#4a3520" strokeWidth="1.6" strokeLinecap="round" opacity="0.7">
+        {Array.from({ length: 9 }, (_, i) => (
+          <path key={i} d={`M44 ${36 + i * 15}q8-5 16 0t16 0 16 0 16 0 ${i % 3 === 2 ? 8 : 16} 0${i % 3 === 2 ? '' : ' 14 0'}`} />
+        ))}
+      </g>
+    </g>
+    <g transform="rotate(9 140 150)">
+      <rect x="98" y="122" width="88" height="58" rx="2" fill="#f1e5c4" stroke="#a8905a" strokeWidth="1.5" />
+      <path d="M98 122l44 32 44-32" fill="none" stroke="#a8905a" strokeWidth="1.5" />
+      <circle cx="142" cy="154" r="11" fill="#a3241a" stroke="#5a120c" strokeWidth="1.5" />
+      <circle cx="142" cy="154" r="5.5" fill="none" stroke="#d0564a" strokeWidth="1.5" />
+    </g>
+    <Pose x={36} y={4} e={1.45}>{PlumeEncrier}</Pose>
+    <Pose x={4} y={150} e={0.5} r={-20}>{Cle}</Pose>
+  </>
+);
+
+/** Coin cuisine : carnet et lunettes rondes, bol d'épices, cuillère, romarin, badiane. */
+const Cuisine = (
+  <>
+    <g transform="rotate(5 70 130)">
+      <rect x="14" y="74" width="106" height="120" rx="4" fill="#2b2530" stroke={TRAIT} strokeWidth="2" />
+      <rect x="24" y="84" width="86" height="100" rx="2" fill="none" stroke="#c9a23f" strokeWidth="1.5" />
+      {/* Lunettes rondes posées sur le carnet */}
+      <g fill="rgba(200, 220, 255, 0.16)" stroke="#0c0a0e" strokeWidth="5" strokeLinecap="round">
+        <circle cx="46" cy="132" r="19" />
+        <circle cx="92" cy="132" r="19" />
+        <path d="M65 130q4-5 8 0M27 130L12 108M111 130l15-22" fill="none" />
+      </g>
+    </g>
+    <Pose x={104} y={2} e={0.92}>{BolEpices}</Pose>
+    <Pose x={118} y={62} e={0.95} r={-38}>{Cuillere}</Pose>
+    <Pose x={118} y={118} e={0.8} r={12}>{Romarin}</Pose>
+    <Pose x={62} y={20} e={0.32} r={10}>{Badiane}</Pose>
+    <Pose x={80} y={48} e={0.26} r={-25}>{Badiane}</Pose>
+  </>
+);
+
+interface Ensemble {
   nom: string;
   dessin: ReactNode;
   /** Position du centre, en % de l'écran. */
   x: number;
   y: number;
-  /** Taille en % du petit côté de l'écran. */
-  taille: number;
   rotation: number;
 }
 
-// Les objets sont répartis en haut et en bas : la bande centrale reste libre
-// pour le livre, qui s'y ouvre en double page.
-const OBJETS: Objet[] = [
-  { nom: 'bougie', dessin: Bougie, x: 17, y: 13, taille: 30, rotation: 0 },
-  { nom: 'cle', dessin: Cle, x: 46, y: 8, taille: 17, rotation: -24 },
-  { nom: 'bol', dessin: BolEpices, x: 80, y: 13, taille: 27, rotation: 0 },
-  { nom: 'badiane-1', dessin: Badiane, x: 60, y: 22, taille: 9, rotation: 12 },
-  { nom: 'romarin', dessin: Romarin, x: 22, y: 28, taille: 26, rotation: 28 },
-  { nom: 'pieces', dessin: Pieces, x: 90, y: 29, taille: 13, rotation: 0 },
-  { nom: 'parchemin', dessin: Parchemin, x: 20, y: 75, taille: 30, rotation: -16 },
-  { nom: 'ail', dessin: Ail, x: 53, y: 73, taille: 13, rotation: 30 },
-  { nom: 'plume', dessin: PlumeEncrier, x: 80, y: 78, taille: 34, rotation: 8 },
-  { nom: 'badiane-2', dessin: Badiane, x: 8, y: 90, taille: 8, rotation: -30 },
-  { nom: 'cuillere', dessin: Cuillere, x: 40, y: 90, taille: 30, rotation: 68 },
-  { nom: 'fiole', dessin: Fiole, x: 87, y: 93, taille: 20, rotation: 20 },
+// Un ensemble par coin : la bande centrale reste libre pour le livre, qui s'y
+// ouvre en double page. Les rotations restent faibles : tout est « rangé ».
+const ENSEMBLES: Ensemble[] = [
+  { nom: 'livres', dessin: PileDeLivres, x: 25, y: 15, rotation: -3 },
+  { nom: 'alchimie', dessin: Alchimie, x: 76, y: 14, rotation: 2 },
+  { nom: 'ecriture', dessin: Ecriture, x: 25, y: 85, rotation: 3 },
+  { nom: 'cuisine', dessin: Cuisine, x: 73, y: 85, rotation: -2 },
 ];
 
-/** Tous les objets de la table. Ils sursautent à l'impact (voir Intro.tsx). */
+/** Le décor de la table. Les ensembles sursautent à l'impact (voir Intro.tsx). */
 export function DecorTable() {
   return (
     <>
-      {OBJETS.map((objet) => (
+      {/* Dégradés partagés par les dessins */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <radialGradient id="halo-bougie">
+            <stop offset="0.2" stopColor="#ffd98a" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#ffd98a" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="boule-cristal" cx="0.4" cy="0.35">
+            <stop offset="0" stopColor="#dfe6ff" />
+            <stop offset="0.5" stopColor="#6a5fc0" />
+            <stop offset="1" stopColor="#2a2060" />
+          </radialGradient>
+        </defs>
+      </svg>
+      {ENSEMBLES.map((ensemble) => (
         <div
-          key={objet.nom}
+          key={ensemble.nom}
           className="intro__objet"
           style={
             {
-              left: `${objet.x}%`,
-              top: `${objet.y}%`,
-              width: `${objet.taille}vmin`,
-              rotate: `${objet.rotation}deg`,
+              left: `${ensemble.x}%`,
+              top: `${ensemble.y}%`,
+              rotate: `${ensemble.rotation}deg`,
             } as CSSProperties
           }
         >
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            {objet.nom === 'bougie' && (
-              <defs>
-                <radialGradient id="halo-bougie">
-                  <stop offset="0.3" stopColor="#ffd98a" stopOpacity="0.5" />
-                  <stop offset="1" stopColor="#ffd98a" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-            )}
-            {objet.dessin}
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            {ensemble.dessin}
           </svg>
         </div>
       ))}
