@@ -1,0 +1,424 @@
+/* ==========================================================================
+   Grimoire de recettes — styles globaux
+   Direction artistique : cuir usé, parchemin jauni, encre brune, touches d'or.
+   Toutes les textures sont générées en CSS/SVG (aucune image externe).
+   ========================================================================== */
+
+:root {
+  /* Palette */
+  --cuir-sombre: #1d120b;
+  --cuir: #3b2114;
+  --parchemin: #ead9b0;
+  --parchemin-clair: #f3e6c4;
+  --parchemin-fonce: #cdb37c;
+  --encre: #2e1d10;
+  --encre-douce: #5d4630;
+  --or: #a67c1e;
+  --or-clair: #e6c66a;
+  --rouge-enluminure: #8c2a1c;
+
+  /* Typographie */
+  --police-titre: 'Uncial Antiqua', 'IM Fell English', Georgia, serif;
+  --police-texte: 'IM Fell English', Georgia, 'Times New Roman', serif;
+
+  /* Grain de papier/cuir : bruit SVG encodé en ligne */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='.35'/%3E%3C/svg%3E");
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--cuir-sombre);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--police-texte);
+  font-size: 1.125rem;
+  line-height: 1.5;
+  color: var(--encre);
+  background: var(--cuir-sombre);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rouge-enluminure);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+h1,
+h2,
+p,
+ol,
+ul,
+dl,
+dd {
+  margin: 0;
+  padding: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+/* --- Fond : la couverture en cuir sur laquelle repose la page ------------- */
+
+.table-cuir {
+  min-height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  background:
+    var(--grain),
+    radial-gradient(ellipse at 50% 0%, #5a3320 0%, var(--cuir) 45%, var(--cuir-sombre) 100%);
+  display: flex;
+  justify-content: center;
+}
+
+/* --- La page de parchemin -------------------------------------------------- */
+
+.parchemin {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  min-height: calc(100dvh - 20px);
+  padding: 28px 22px 36px;
+  border-radius: 3px 8px 8px 3px;
+  background:
+    var(--grain),
+    /* taches d'âge */
+    radial-gradient(circle at 12% 18%, rgba(150, 105, 40, 0.18) 0, transparent 22%),
+    radial-gradient(circle at 88% 72%, rgba(150, 105, 40, 0.16) 0, transparent 26%),
+    radial-gradient(circle at 70% 8%, rgba(120, 80, 30, 0.1) 0, transparent 18%),
+    /* bords brunis */
+    radial-gradient(ellipse at center, var(--parchemin-clair) 0%, var(--parchemin) 62%, var(--parchemin-fonce) 100%);
+  box-shadow:
+    inset 0 0 38px rgba(96, 60, 20, 0.45),
+    /* ombre de la reliure, côté gauche */
+    inset 14px 0 18px -10px rgba(40, 20, 5, 0.5),
+    0 6px 22px rgba(0, 0, 0, 0.6);
+}
+
+/* Double filet doré encadrant la page, façon enluminure */
+.parchemin::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(166, 124, 30, 0.55);
+  outline: 1px solid rgba(166, 124, 30, 0.3);
+  outline-offset: 3px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.ornement {
+  display: block;
+  width: min(200px, 60%);
+  margin: 10px auto;
+  color: var(--or);
+}
+
+/* --- Sommaire -------------------------------------------------------------- */
+
+.frontispice {
+  text-align: center;
+  padding-top: 8px;
+  margin-bottom: 14px;
+}
+
+.frontispice__symbole {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 10px;
+  display: grid;
+  place-items: center;
+  color: var(--or);
+  border: 1.5px solid var(--or);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4px var(--parchemin),
+    0 0 0 5px rgba(166, 124, 30, 0.5);
+  background: radial-gradient(circle, rgba(230, 198, 106, 0.35), transparent 70%);
+}
+
+.frontispice__titre {
+  font-family: var(--police-titre);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 7.5vw, 2.6rem);
+  line-height: 1.15;
+  color: var(--rouge-enluminure);
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  text-wrap: balance;
+}
+
+.frontispice__sous-titre {
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.categorie {
+  margin-top: 18px;
+}
+
+.categorie__titre {
+  font-family: var(--police-titre);
+  font-weight: 400;
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+  color: var(--or);
+  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.7);
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(166, 124, 30, 0.45);
+}
+
+.chapitre {
+  width: 100%;
+  min-height: 52px; /* cible tactile confortable */
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 2px;
+  text-align: left;
+  border-bottom: 1px dotted rgba(93, 70, 48, 0.25);
+  transition: background-color 0.15s;
+}
+
+.chapitre:active {
+  background: rgba(166, 124, 30, 0.14);
+}
+
+@media (hover: hover) {
+  .chapitre:hover {
+    background: rgba(166, 124, 30, 0.1);
+  }
+}
+
+/* Vignette ronde : symbole pour l'instant, photo de la recette plus tard */
+.chapitre__vignette {
+  flex: none;
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--encre-douce);
+  border: 1px solid rgba(93, 70, 48, 0.5);
+  border-radius: 50%;
+  background: rgba(255, 245, 215, 0.45);
+}
+
+.chapitre__numero {
+  flex: none;
+  min-width: 2.3em;
+  text-align: right;
+  font-style: italic;
+  color: var(--rouge-enluminure);
+}
+
+.chapitre__titre {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.chapitre__favori {
+  color: var(--or);
+}
+
+.chapitre__points {
+  flex: 1 1 12px;
+  min-width: 12px;
+  border-bottom: 2px dotted rgba(93, 70, 48, 0.45);
+  transform: translateY(-4px);
+}
+
+.chapitre__duree {
+  flex: none;
+  font-size: 0.9em;
+  font-style: italic;
+  color: var(--encre-douce);
+  white-space: nowrap;
+}
+
+.sommaire__pied {
+  margin-top: 26px;
+}
+
+/* --- Recette --------------------------------------------------------------- */
+
+/* Ruban marque-page en tissu rouge, accroché en haut à droite de la page */
+.ruban {
+  position: absolute;
+  top: -4px;
+  right: 22px;
+  z-index: 2;
+  width: 44px;
+  height: 104px;
+  padding-bottom: 14px;
+  display: grid;
+  place-items: center;
+  color: #f6e3b4;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  background: linear-gradient(90deg, #6f1d12, #a33423 45%, #7c2216);
+  /* pointe en V au bas du ruban */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 16px), 0 100%);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+}
+
+.ruban span {
+  writing-mode: vertical-rl;
+}
+
+.recette__entete {
+  text-align: center;
+  padding: 6px 56px 0; /* laisse la place du ruban */
+  margin-bottom: 8px;
+}
+
+.recette__categorie {
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.recette__titre {
+  font-family: var(--police-titre);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 6.5vw, 2.2rem);
+  line-height: 1.2;
+  color: var(--rouge-enluminure);
+  text-wrap: balance;
+}
+
+.recette__infos {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin: 4px -56px 0;
+}
+
+.recette__infos dt {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.recette__infos dd {
+  font-size: 1.1rem;
+}
+
+.recette__section {
+  margin: 22px 0 8px;
+  font-family: var(--police-titre);
+  font-weight: 400;
+  font-size: 1.15rem;
+  color: var(--or);
+  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.7);
+  border-bottom: 1px solid rgba(166, 124, 30, 0.45);
+}
+
+.ingredients li {
+  position: relative;
+  padding: 3px 0 3px 22px;
+}
+
+/* Puce en losange doré */
+.ingredients li::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0.8em;
+  width: 7px;
+  height: 7px;
+  background: var(--or);
+  transform: rotate(45deg);
+}
+
+.ingredients strong {
+  font-weight: 400;
+  color: var(--rouge-enluminure);
+}
+
+.etape {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.etape__numero {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-family: var(--police-titre);
+  font-size: 0.95rem;
+  color: var(--rouge-enluminure);
+  border: 1px solid var(--or);
+  border-radius: 50%;
+  background: rgba(230, 198, 106, 0.25);
+}
+
+/* Lettrine enluminée sur la première étape */
+.etape--lettrine p::first-letter {
+  float: left;
+  margin: 4px 8px 0 0;
+  padding: 4px 8px;
+  font-family: var(--police-titre);
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--parchemin-clair);
+  background: var(--rouge-enluminure);
+  border: 2px solid var(--or);
+  box-shadow: inset 0 0 0 1px rgba(230, 198, 106, 0.6);
+}
+
+.notes p {
+  font-style: italic;
+  padding: 10px 14px;
+  border-left: 3px solid var(--or);
+  background: rgba(255, 245, 215, 0.4);
+}
+
+/* --- Écrans larges (tablette / PC) ---------------------------------------- */
+
+@media (min-width: 700px) {
+  .table-cuir {
+    padding: 28px;
+  }
+
+  .parchemin {
+    min-height: calc(100dvh - 56px);
+    padding: 44px 48px 52px;
+  }
+
+  .parchemin::before {
+    inset: 14px;
+  }
+
+  .ruban {
+    right: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

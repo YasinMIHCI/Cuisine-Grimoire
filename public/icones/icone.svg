@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="cuir" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b2f1a"/>
+      <stop offset="1" stop-color="#3a160b"/>
+    </linearGradient>
+    <linearGradient id="or" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f3d98a"/>
+      <stop offset="1" stop-color="#b8892f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#1d120b"/>
+  <rect x="96" y="56" width="320" height="400" rx="18" fill="url(#cuir)"/>
+  <rect x="96" y="56" width="38" height="400" rx="14" fill="#2b1008"/>
+  <rect x="154" y="80" width="238" height="352" rx="8" fill="none" stroke="url(#or)" stroke-width="5"/>
+  <rect x="166" y="92" width="214" height="328" rx="4" fill="none" stroke="url(#or)" stroke-width="2"/>
+  <!-- Chaudron -->
+  <g fill="none" stroke="url(#or)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M205 262h136"/>
+    <path d="M215 262c-14 60 12 96 58 96s72-36 58-96"/>
+    <path d="M238 356l-12 22M308 356l12 22"/>
+    <path d="M250 228c-10-14 10-22 0-38M290 232c-10-14 10-22 0-38"/>
+  </g>
+  <g fill="url(#or)">
+    <path d="M273 122l6 16 16 6-16 6-6 16-6-16-16-6 16-6z"/>
+    <circle cx="204" cy="150" r="4"/><circle cx="344" cy="170" r="4"/><circle cx="330" cy="130" r="3"/>
+  </g>
+</svg>
