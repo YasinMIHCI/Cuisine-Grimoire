@@ -70,6 +70,9 @@ export function TourneurDePages({ cle, transition, surFin, children }: Props) {
       refSurFin.current?.();
     };
 
+    let image1 = 0;
+    let image2 = 0;
+
     const contexte = gsap.context(() => {
       // Mouvement réduit : simple fondu de l'ancienne page vers la nouvelle
       if (mouvementReduit()) {
@@ -80,20 +83,21 @@ export function TourneurDePages({ cle, transition, surFin, children }: Props) {
       const feuilles = gsap.utils
         .toArray<HTMLElement>('[data-ordre]')
         .sort((a, b) => Number(a.dataset.ordre) - Number(b.dataset.ordre));
-      const chronologie = gsap.timeline({ onComplete: terminer });
+      // La chronologie est créée en pause : elle démarre deux images plus tard,
+      // une fois les nouvelles feuilles dessinées par le navigateur. Sans cela,
+      // le temps de préparation des pages « mange » le début de l'animation.
+      const chronologie = gsap.timeline({ paused: true, onComplete: terminer });
       const courbe = feuilles.length > 1 ? 'power1.inOut' : 'power2.inOut';
 
       if (sens === 'avant') {
         feuilles.forEach((feuille, i) => {
           const debut = i * decalage;
-          const ombre = feuille.querySelector('.feuille__ombre');
           chronologie.fromTo(
             feuille,
             { rotationY: 0 },
             { rotationY: -180, duration: duree, ease: courbe, force3D: true },
             debut,
           );
-          if (ombre) chronologie.to(ombre, { opacity: 1, duration: duree * 0.5 }, debut);
           // La feuille s'efface en fin de course (elle sort du livre)
           chronologie.to(feuille, { opacity: 0, duration: duree * 0.25 }, debut + duree * 0.75);
         });
@@ -102,22 +106,26 @@ export function TourneurDePages({ cle, transition, surFin, children }: Props) {
         gsap.set(feuilles, { rotationY: -180, opacity: 0 });
         feuilles.forEach((feuille, i) => {
           const debut = i * decalage;
-          const ombre = feuille.querySelector('.feuille__ombre');
           chronologie.to(feuille, { opacity: 1, duration: duree * 0.25 }, debut);
           chronologie.to(
             feuille,
             { rotationY: 0, duration: duree, ease: courbe, force3D: true },
             debut,
           );
-          if (ombre) {
-            chronologie.fromTo(ombre, { opacity: 1 }, { opacity: 0, duration: duree * 0.5 }, debut + duree * 0.5);
-          }
         });
       }
+
+      image1 = requestAnimationFrame(() => {
+        image2 = requestAnimationFrame(() => chronologie.play());
+      });
     }, refLivre);
 
     // Fin ou interruption : GSAP retire tous les styles qu'il a posés
-    return () => contexte.revert();
+    return () => {
+      cancelAnimationFrame(image1);
+      cancelAnimationFrame(image2);
+      contexte.revert();
+    };
   }, [sortante]);
 
   // --- Empilement des feuilles -------------------------------------------
@@ -177,22 +185,39 @@ interface PropsFeuille {
   children: ReactNode;
 }
 
-/** Une feuille du livre : recto (contenu) et, pendant qu'elle tourne, verso vierge. */
+/**
+ * Une feuille du livre.
+ * Pour rester fluide sur téléphone, on limite le nombre de calques graphiques :
+ * - une page de contenu a un recto et, pendant qu'elle tourne, un verso vierge ;
+ * - une feuille intercalaire est un seul calque, visible des deux côtés.
+ */
 function Feuille({ role, niveau, ordre, inerte, children }: PropsFeuille) {
   const tourne = ordre !== undefined;
+
+  if (role === 'intercalaire') {
+    return (
+      <div
+        className="feuille feuille--tournante feuille--intercalaire parchemin-simple"
+        style={{ zIndex: niveau }}
+        data-role={role}
+        data-ordre={ordre}
+        aria-hidden="true"
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div
       className={tourne ? 'feuille feuille--tournante' : 'feuille'}
       style={{ zIndex: niveau }}
       data-role={role}
       data-ordre={ordre}
-      inert={inerte || role === 'intercalaire'}
+      inert={inerte}
     >
-      <div className="feuille__recto parchemin">
-        {children}
-        {tourne && <div className="feuille__ombre" />}
-      </div>
-      {tourne && <div className="feuille__verso parchemin" />}
+      <div className="feuille__recto parchemin">{children}</div>
+      {tourne && <div className="feuille__verso parchemin-simple" />}
     </div>
   );
 }

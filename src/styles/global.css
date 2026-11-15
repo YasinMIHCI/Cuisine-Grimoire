@@ -145,16 +145,6 @@ ul {
   background: linear-gradient(to left, rgba(40, 20, 5, 0.45), rgba(40, 20, 5, 0.12) 35%, transparent 70%);
 }
 
-/* Ombre qui gagne la page à mesure qu'elle se soulève */
-.feuille__ombre {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  opacity: 0;
-  pointer-events: none;
-  background: linear-gradient(to left, rgba(40, 20, 5, 0.5), rgba(40, 20, 5, 0.15) 50%, transparent 85%);
-}
-
 /* Page de mesure pour la pagination : en place mais invisible */
 .feuille--mesure {
   visibility: hidden;
@@ -164,8 +154,8 @@ ul {
 
 /* Feuille intermédiaire : lignes d'écriture indistinctes */
 .intercalaire {
-  height: 100%;
-  margin: 26px 8px;
+  height: calc(100% - 108px);
+  margin: 54px 30px;
   opacity: 0.22;
   background: repeating-linear-gradient(
     to bottom,
@@ -175,6 +165,14 @@ ul {
   );
   -webkit-mask-image: linear-gradient(to right, #000 0 62%, transparent 62% 66%, #000 66% 88%, transparent 88%);
   mask-image: linear-gradient(to right, #000 0 62%, transparent 62% 66%, #000 66% 88%, transparent 88%);
+}
+
+/* Parchemin allégé (feuilles intercalaires, versos) : un seul dégradé, sans
+   grain ni ombres, donc très rapide à dessiner pendant les animations */
+.parchemin-simple {
+  overflow: hidden;
+  border-radius: 3px 8px 8px 3px;
+  background: radial-gradient(ellipse at center, var(--parchemin-clair) 0%, var(--parchemin) 62%, var(--parchemin-fonce) 100%);
 }
 
 /* --- La page de parchemin -------------------------------------------------- */
