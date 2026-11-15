@@ -4,7 +4,7 @@ import type { Livre, Recette } from '../types';
 
 export const livreFictif: Livre = {
   id: 'livre-1',
-  titre: 'Recettes de mamie',
+  titre: 'Recette et Grimoire',
   couleurCuir: '#5a2415',
   symbole: 'chaudron',
 };

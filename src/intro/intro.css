@@ -85,16 +85,38 @@
   opacity: 0.85;
 }
 
-/* Lueur dorée qui monte de la page avant le zoom */
+/* Feuilles qui défilent : même emplacement que le bloc de pages */
+.intro__feuilles {
+  position: absolute;
+  inset: 2.5% 4% 2.5% 1%;
+}
+
+/* Une feuille : un seul calque, visible des deux côtés, qui pivote autour du dos */
+.intro__feuille {
+  position: absolute;
+  inset: 0;
+  opacity: 0; /* apparaît à son premier passage */
+  transform-origin: left center;
+  border-radius: 1px 3px 3px 1px;
+  background:
+    linear-gradient(to right, rgba(40, 20, 5, 0.35), transparent 14%),
+    radial-gradient(ellipse at center, var(--parchemin-clair), var(--parchemin) 65%, var(--parchemin-fonce));
+  will-change: transform;
+}
+
+/* Lueur dorée qui monte des pages pendant le défilement (couvre la double page) */
 .intro__lueur {
   position: absolute;
-  inset: -10%;
+  inset: -10% -10% -10% -110%;
+  z-index: 2000;
+  pointer-events: none;
   opacity: 0;
   background: radial-gradient(ellipse at center, rgba(255, 236, 170, 0.95), rgba(240, 200, 100, 0.5) 45%, transparent 72%);
 }
 
 .intro__etincelle {
   position: absolute;
+  z-index: 2001;
   width: 5px;
   height: 5px;
   border-radius: 50%;

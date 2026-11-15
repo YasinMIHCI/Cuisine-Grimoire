@@ -23,8 +23,13 @@ function generateur(graine: number) {
   };
 }
 
-export function PageRunes() {
-  const hasard = generateur(7);
+interface Props {
+  /** Change la disposition des runes d'une page à l'autre. */
+  graine?: number;
+}
+
+export function PageRunes({ graine = 7 }: Props) {
+  const hasard = generateur(graine);
   const glyphes: { x: number; y: number; trace: string }[] = [];
   for (let ligne = 0; ligne < 12; ligne++) {
     for (let colonne = 0; colonne < 13; colonne++) {

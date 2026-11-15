@@ -15,17 +15,24 @@ interface Props {
 // Moments clés de l'animation (en secondes)
 const T_IMPACT = 1.5;
 const T_OUVERTURE = 1.72;
-const T_ZOOM = 2.9;
+const T_FEUILLES = 2.1;
+const T_ZOOM = 2.7;
 const T_FLASH = 4.1;
-const T_REVELATION = 4.6;
+const T_REVELATION = 4.55;
+const T_DISSIPATION = 4.9;
 
 const NB_POUSSIERES = 26;
 const NB_ETINCELLES = 12;
+/** Feuilles qui défilent sans fin : quelques feuilles réutilisées en boucle. */
+const NB_FEUILLES = 6;
+const DUREE_FEUILLE = 0.55;
+const ECART_FEUILLES = 0.13;
 
 /**
- * Animation d'introduction, jouée à chaque lancement (~5,5 s) :
+ * Animation d'introduction, jouée à chaque lancement (~5,6 s) :
  * chute du livre vue du dessus → impact (poussière, secousse) → le livre
- * s'ouvre sur une page de runes → zoom → flash → l'appli apparaît.
+ * s'ouvre et ses pages de runes défilent sans fin → zoom sur ce défilement
+ * → flash → l'appli apparaît.
  *
  * Seuls `transform` et `opacity` sont animés (GSAP), pour rester à 60 images/s.
  * Un tap pendant l'intro saute directement au flash.
@@ -175,31 +182,52 @@ export function Intro({ livre, surFin }: Props) {
       chrono.to(livreEl, { xPercent: 50, duration: 1, ease: 'power2.out' }, T_OUVERTURE);
       chrono.to('.intro__ombre', { scaleX: 2.1, x: 0, duration: 1, ease: 'power2.out' }, T_OUVERTURE);
 
-      // Touches magiques : lueur dorée sur la page et étincelles qui montent
-      chrono.to('.intro__lueur', { opacity: 1, duration: 1.4, ease: 'power1.in' }, T_OUVERTURE + 0.8);
+      // Les pages se mettent à défiler sans fin, comme feuilletées par un souffle.
+      // Chaque passage réutilise une des feuilles ; l'ordre d'empilement est mis à
+      // jour au départ (sous les feuilles déjà en vol) et à mi-course, quand la
+      // feuille est de profil (elle se pose alors par-dessus les précédentes).
+      const feuilles = gsap.utils.toArray<HTMLElement>('.intro__feuille');
+      gsap.set(feuilles, { transformPerspective: 1100 });
+      for (let k = 0; T_FEUILLES + k * ECART_FEUILLES < T_REVELATION; k++) {
+        const feuille = feuilles[k % feuilles.length];
+        const debut = T_FEUILLES + k * ECART_FEUILLES;
+        chrono.set(feuille, { rotationY: 0, opacity: 1, zIndex: 500 - k }, debut);
+        chrono.to(feuille, { rotationY: -180, duration: DUREE_FEUILLE, ease: 'sine.inOut', force3D: true }, debut);
+        chrono.set(feuille, { zIndex: 500 + k }, debut + DUREE_FEUILLE / 2);
+      }
+
+      // Touches magiques : lueur dorée sur les pages et étincelles qui montent
+      chrono.to('.intro__lueur', { opacity: 0.5, duration: 1.6, ease: 'power1.in' }, T_FEUILLES + 0.3);
       gsap.utils.toArray<HTMLElement>('.intro__etincelle').forEach((etincelle, i) => {
         const e = etincelles[i];
-        const debut = T_OUVERTURE + 0.6 + e.retard;
+        const debut = T_FEUILLES + e.retard;
         chrono.fromTo(etincelle, { y: 0 }, { y: -hauteur * e.montee, duration: 1.3, ease: 'power1.out' }, debut);
         chrono.to(etincelle, { opacity: 1, duration: 0.3 }, debut);
         chrono.to(etincelle, { opacity: 0, duration: 0.8 }, debut + 0.5);
       });
 
-      // 4. La caméra plonge vers la page de droite
-      const centrePageX = scene.clientWidth / 2 + largeur / 2;
-      const zoom = Math.max(scene.clientWidth / largeur, scene.clientHeight / hauteur) * 1.3;
-      gsap.set('.intro__camera', { transformOrigin: `${centrePageX}px 50%` });
-      chrono.to('.intro__camera', { scale: zoom, duration: 1.65, ease: 'power2.in', force3D: true }, T_ZOOM);
+      // 4. La caméra plonge vers les pages qui défilent
+      const centreX = scene.clientWidth / 2 + largeur * 0.2;
+      const zoom = Math.max(scene.clientWidth / largeur, scene.clientHeight / hauteur) * 1.2;
+      gsap.set('.intro__camera', { transformOrigin: `${centreX}px 50%` });
+      chrono.to(
+        '.intro__camera',
+        { scale: zoom, duration: T_REVELATION - T_ZOOM, ease: 'power2.in', force3D: true },
+        T_ZOOM,
+      );
 
       // 5. Flash blanc doré plein écran
       chrono.addLabel('flash', T_FLASH);
       chrono.fromTo('.intro__flash', { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power1.in' }, T_FLASH);
 
-      // 6. Derrière le flash, on retire la scène : l'appli est dessous
+      // 6. Derrière le flash, on retire la scène : l'appli est dessous.
+      //    Le flash reste un instant à 99 % d'opacité : comme il n'est plus tout
+      //    à fait opaque, le navigateur dessine l'appli dessous pendant ce temps,
+      //    et la dissipation qui suit se fait sans à-coup.
       chrono.set('.intro__camera', { autoAlpha: 0 }, T_REVELATION);
       chrono.set(scene, { backgroundColor: 'transparent' }, T_REVELATION);
-      // Le blanc tient un court instant, puis se dissipe sur l'appli
-      chrono.to('.intro__flash', { opacity: 0, duration: 0.8, ease: 'power1.out' }, T_REVELATION + 0.1);
+      chrono.set('.intro__flash', { opacity: 0.99 }, T_REVELATION);
+      chrono.to('.intro__flash', { opacity: 0, duration: 0.7, ease: 'power1.out' }, T_DISSIPATION);
     }, scene);
 
     // On attend la police du titre et deux images, pour démarrer sans à-coup
@@ -242,13 +270,9 @@ export function Intro({ livre, surFin }: Props) {
         ))}
 
         <div className="intro__livre">
-          {/* Bloc de pages, avec la page de runes sur le dessus */}
+          {/* Bloc de pages, avec une page de runes sur le dessus */}
           <div className="intro__page">
             <PageRunes />
-            <div className="intro__lueur" />
-            {etincelles.map((e, i) => (
-              <span key={i} className="intro__etincelle" style={{ left: `${e.gauche}%`, top: `${e.haut}%` }} />
-            ))}
           </div>
           {/* Plat de couverture : pivote autour du dos (bord gauche) */}
           <div className="intro__plat">
@@ -256,6 +280,18 @@ export function Intro({ livre, surFin }: Props) {
               <Couverture livre={livre} />
             </div>
             <div className="intro__plat-face intro__plat-face--interieur" style={{ '--cuir-livre': livre.couleurCuir } as React.CSSProperties} />
+          </div>
+          {/* Feuilles qui défilent : chacune pivote autour du dos, de droite à gauche */}
+          <div className="intro__feuilles">
+            {Array.from({ length: NB_FEUILLES }, (_, i) => (
+              <div key={i} className="intro__feuille">
+                <PageRunes graine={11 + i * 13} />
+              </div>
+            ))}
+            <div className="intro__lueur" />
+            {etincelles.map((e, i) => (
+              <span key={i} className="intro__etincelle" style={{ left: `${e.gauche}%`, top: `${e.haut}%` }} />
+            ))}
           </div>
         </div>
       </div>
