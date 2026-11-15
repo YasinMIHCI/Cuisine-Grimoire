@@ -109,6 +109,18 @@ function Pose({ x, y, e = 1, r = 0, children }: { x: number; y: number; e?: numb
   return <g transform={`translate(${x} ${y}) scale(${e}) rotate(${r} 50 50)`}>{children}</g>;
 }
 
+/**
+ * Objet proche du livre : à l'impact, il est projeté de (dx, dy) et pivote de
+ * `rot` degrés (unités de la boîte de l'ensemble). Animé dans Intro.tsx.
+ */
+function Ejecte({ dx, dy, rot, children }: { dx: number; dy: number; rot: number; children: ReactNode }) {
+  return (
+    <g className="intro__ejectable" data-dx={dx} data-dy={dy} data-rot={rot}>
+      {children}
+    </g>
+  );
+}
+
 /** Livre fermé vu du dessus : tranche des pages, couverture, dos et filet doré. */
 function LivreFerme({ x, y, l, h, r, cuir, dos }: { x: number; y: number; l: number; h: number; r: number; cuir: string; dos: string }) {
   return (
@@ -158,12 +170,18 @@ const PileDeLivres = (
   <>
     <LivreFerme x={14} y={34} l={128} h={158} r={-5} cuir="#2f4a3a" dos="#1f3327" />
     <LivreFerme x={26} y={46} l={112} h={138} r={3} cuir="#6b2418" dos="#4a160d" />
-    <LivreFerme x={38} y={60} l={94} h={116} r={-2} cuir="#26324f" dos="#182036" />
+    <Ejecte dx={-9} dy={-12} rot={-5}>
+      <LivreFerme x={38} y={60} l={94} h={116} r={-2} cuir="#26324f" dos="#182036" />
     <circle cx="90" cy="122" r="13" fill="none" stroke="#c9a23f" strokeWidth="1.5" />
     <path d="M90 113l2.6 6.4 6.9.5-5.3 4.4 1.7 6.7-5.9-3.7-5.9 3.7 1.7-6.7-5.3-4.4 6.9-.5z" fill="#c9a23f" />
+    </Ejecte>
     <Pose x={96} y={-4} e={0.72}>{Bougie}</Pose>
-    <Pose x={140} y={104} e={0.56}>{Bougie}</Pose>
-    <Pose x={150} y={150} e={0.44}>{Bougie}</Pose>
+    <Ejecte dx={16} dy={-30} rot={0}>
+      <Pose x={140} y={104} e={0.56}>{Bougie}</Pose>
+    </Ejecte>
+    <Ejecte dx={30} dy={-22} rot={0}>
+      <Pose x={150} y={150} e={0.44}>{Bougie}</Pose>
+    </Ejecte>
   </>
 );
 
@@ -178,11 +196,19 @@ const Alchimie = (
     <circle cx="156" cy="62" r="34" fill="#8a6a2a" stroke="#4d3812" strokeWidth="2" />
     <circle cx="156" cy="62" r="27" fill="url(#boule-cristal)" stroke="#231a4a" strokeWidth="1.5" />
     <path d="M140 50a20 20 0 0 1 16-10" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" opacity="0.7" />
-    <Cristal x={136} y={116} r={-18} couleur="#9fe0e8" />
-    <Cristal x={162} y={120} r={14} couleur="#c9a0f0" />
+    <Ejecte dx={-14} dy={-34} rot={95}>
+      <Cristal x={136} y={116} r={-18} couleur="#9fe0e8" />
+    </Ejecte>
+    <Ejecte dx={24} dy={-26} rot={-120}>
+      <Cristal x={162} y={120} r={14} couleur="#c9a0f0" />
+    </Ejecte>
     {/* Deux rouleaux rangés côte à côte */}
-    <Pose x={20} y={112} e={1.5} r={-4}>{Parchemin}</Pose>
-    <Pose x={30} y={136} e={1.4} r={-4}>{Parchemin}</Pose>
+    <Ejecte dx={-8} dy={-20} rot={-7}>
+      <Pose x={20} y={112} e={1.5} r={-4}>{Parchemin}</Pose>
+    </Ejecte>
+    <Ejecte dx={14} dy={-30} rot={11}>
+      <Pose x={30} y={136} e={1.4} r={-4}>{Parchemin}</Pose>
+    </Ejecte>
   </>
 );
 
@@ -197,13 +223,17 @@ const Ecriture = (
         ))}
       </g>
     </g>
+    <Ejecte dx={12} dy={24} rot={14}>
     <g transform="rotate(9 140 150)">
       <rect x="98" y="122" width="88" height="58" rx="2" fill="#f1e5c4" stroke="#a8905a" strokeWidth="1.5" />
       <path d="M98 122l44 32 44-32" fill="none" stroke="#a8905a" strokeWidth="1.5" />
       <circle cx="142" cy="154" r="11" fill="#a3241a" stroke="#5a120c" strokeWidth="1.5" />
       <circle cx="142" cy="154" r="5.5" fill="none" stroke="#d0564a" strokeWidth="1.5" />
     </g>
-    <Pose x={36} y={4} e={1.45}>{PlumeEncrier}</Pose>
+    </Ejecte>
+    <Ejecte dx={10} dy={16} rot={9}>
+      <Pose x={36} y={4} e={1.45}>{PlumeEncrier}</Pose>
+    </Ejecte>
     <Pose x={4} y={150} e={0.5} r={-20}>{Cle}</Pose>
   </>
 );
@@ -215,17 +245,27 @@ const Cuisine = (
       <rect x="14" y="74" width="106" height="120" rx="4" fill="#2b2530" stroke={TRAIT} strokeWidth="2" />
       <rect x="24" y="84" width="86" height="100" rx="2" fill="none" stroke="#c9a23f" strokeWidth="1.5" />
       {/* Lunettes rondes posées sur le carnet */}
-      <g fill="rgba(200, 220, 255, 0.16)" stroke="#0c0a0e" strokeWidth="5" strokeLinecap="round">
-        <circle cx="46" cy="132" r="19" />
-        <circle cx="92" cy="132" r="19" />
-        <path d="M65 130q4-5 8 0M27 130L12 108M111 130l15-22" fill="none" />
-      </g>
+      <Ejecte dx={-6} dy={14} rot={-9}>
+        <g fill="rgba(200, 220, 255, 0.16)" stroke="#0c0a0e" strokeWidth="5" strokeLinecap="round">
+          <circle cx="46" cy="132" r="19" />
+          <circle cx="92" cy="132" r="19" />
+          <path d="M65 130q4-5 8 0M27 130L12 108M111 130l15-22" fill="none" />
+        </g>
+      </Ejecte>
     </g>
-    <Pose x={104} y={2} e={0.92}>{BolEpices}</Pose>
-    <Pose x={118} y={62} e={0.95} r={-38}>{Cuillere}</Pose>
+    <Ejecte dx={6} dy={12} rot={0}>
+      <Pose x={104} y={2} e={0.92}>{BolEpices}</Pose>
+    </Ejecte>
+    <Ejecte dx={12} dy={18} rot={14}>
+      <Pose x={118} y={62} e={0.95} r={-38}>{Cuillere}</Pose>
+    </Ejecte>
     <Pose x={118} y={118} e={0.8} r={12}>{Romarin}</Pose>
-    <Pose x={62} y={20} e={0.32} r={10}>{Badiane}</Pose>
-    <Pose x={80} y={48} e={0.26} r={-25}>{Badiane}</Pose>
+    <Ejecte dx={-22} dy={26} rot={140}>
+      <Pose x={62} y={20} e={0.32} r={10}>{Badiane}</Pose>
+    </Ejecte>
+    <Ejecte dx={12} dy={34} rot={-110}>
+      <Pose x={80} y={48} e={0.26} r={-25}>{Badiane}</Pose>
+    </Ejecte>
   </>
 );
 
@@ -247,7 +287,10 @@ const ENSEMBLES: Ensemble[] = [
   { nom: 'cuisine', dessin: Cuisine, x: 73, y: 85, rotation: -2 },
 ];
 
-/** Le décor de la table. Les ensembles sursautent à l'impact (voir Intro.tsx). */
+/**
+ * Le décor de la table. À l'impact, chaque ensemble sursaute et les objets les
+ * plus proches du livre sont projetés vers l'extérieur (voir Intro.tsx).
+ */
 export function DecorTable() {
   return (
     <>

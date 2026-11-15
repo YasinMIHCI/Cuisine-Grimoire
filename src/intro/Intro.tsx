@@ -154,6 +154,21 @@ export function Intro({ livre, surFin }: Props) {
           T_IMPACT + 0.02 + (i % 4) * 0.02,
         );
       });
+      // …et les plus proches du livre sont chassés vers l'extérieur par le souffle
+      gsap.utils.toArray<SVGGElement>('.intro__ejectable').forEach((objet) => {
+        chrono.to(
+          objet,
+          {
+            x: Number(objet.dataset.dx),
+            y: Number(objet.dataset.dy),
+            rotation: Number(objet.dataset.rot),
+            transformOrigin: '50% 50%',
+            duration: 0.6,
+            ease: 'power3.out', // départ vif, puis l'objet glisse et s'arrête
+          },
+          T_IMPACT + 0.02,
+        );
+      });
       chrono.fromTo(
         '.intro__onde',
         { scale: 0.6, opacity: 0.55 },
