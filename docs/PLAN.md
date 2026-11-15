@@ -5,7 +5,7 @@
 | Étape | Contenu | État |
 |---|---|---|
 | (a) | Squelette PWA, un livre + sommaire, données fictives | ✅ fait |
-| (b) | Pagination automatique des recettes, page tournée (swipe / tap), défilement rapide de pages à l'ouverture d'un chapitre | à faire |
+| (b) | Pagination automatique des recettes, page tournée (swipe / tap), défilement rapide de pages à l'ouverture d'un chapitre | ✅ fait |
 | (c) | Intro : chute du livre, impact, ouverture, zoom, flash (GSAP) + version courte `prefers-reduced-motion` | à faire |
 | (d) | Supabase : auth (email + Google), tables + RLS, synchro, cache hors ligne, images compressées | à faire |
 | (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | à faire |
@@ -42,8 +42,8 @@ src/
   styles/                 styles globaux (parchemin, cuir, typographie)
   donnees/                données fictives, puis accès Supabase + cache local
   utilitaires/            formatage, pagination, compression d'images…
-  composants/             Sommaire, PageRecette, Symbole, Ornement…
-  livre/                  pagination, pages qui tournent           (étape b)
+  composants/             Sommaire, Symbole, Ornement…
+  livre/                  livre ouvert, pagination, pages qui tournent
   intro/                  animation d'introduction                 (étape c)
   auth/                   connexion, profil                        (étape d)
   bibliotheque/           étagère, couvertures, éditeur de livre   (étape e)

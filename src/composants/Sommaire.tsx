@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { CATEGORIES, type Livre, type Recette } from '../types';
 import { enChiffresRomains, formaterDuree } from '../utilitaires/format';
 import { Ornement } from './Ornement';
@@ -7,18 +8,39 @@ interface Props {
   livre: Livre;
   recettes: Recette[];
   surOuvrirRecette: (id: string) => void;
+  /** Position de défilement à restaurer (on revient là où on était). */
+  defilementInitial?: number;
+  surDefilement?: (position: number) => void;
 }
 
 /**
  * Sommaire d'un livre : les recettes sont les chapitres du grimoire,
  * regroupées par catégorie et numérotées en continu (chiffres romains).
  */
-export function Sommaire({ livre, recettes, surOuvrirRecette }: Props) {
+export function Sommaire({
+  livre,
+  recettes,
+  surOuvrirRecette,
+  defilementInitial = 0,
+  surDefilement,
+}: Props) {
+  const refPage = useRef<HTMLDivElement>(null);
+
+  // Au retour d'une recette, on retrouve le sommaire à l'endroit où on l'avait laissé
+  useLayoutEffect(() => {
+    if (refPage.current) refPage.current.scrollTop = defilementInitial;
+    // (uniquement à l'ouverture de la page)
+  }, []);
+
   // Numéro de chapitre continu d'une catégorie à l'autre
   let numero = 0;
 
   return (
-    <div className="sommaire">
+    <div
+      className="page page--defilante sommaire"
+      ref={refPage}
+      onScroll={(e) => surDefilement?.(e.currentTarget.scrollTop)}
+    >
       <header className="frontispice">
         <div className="frontispice__symbole">
           <Symbole nom={livre.symbole} taille={44} />
