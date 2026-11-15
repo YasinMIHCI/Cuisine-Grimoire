@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import gsap from 'gsap';
-import type { Livre } from '../types';
+import type { ApparenceLivre } from '../types';
 import { Couverture } from '../composants/Couverture';
 import { DecorTable } from './DecorTable';
 import { PageRunes } from './PageRunes';
@@ -8,7 +8,7 @@ import './intro.css';
 
 interface Props {
   /** Le livre dont on montre la couverture (dernier livre ouvert). */
-  livre: Livre;
+  livre: ApparenceLivre;
   /** Appelé quand l'intro est terminée : l'appli peut être utilisée. */
   surFin: () => void;
 }

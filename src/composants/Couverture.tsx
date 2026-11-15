@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react';
-import type { Livre } from '../types';
+import type { ApparenceLivre } from '../types';
 import { Symbole } from './Symbole';
 import './couverture.css';
 
 interface Props {
-  livre: Livre;
+  livre: ApparenceLivre;
 }
 
 /**

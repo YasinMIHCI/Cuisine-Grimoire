@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { CATEGORIES, type Livre, type Recette } from '../types';
+import { ImageCollee } from './ImageCollee';
 import { enChiffresRomains, formaterDuree } from '../utilitaires/format';
 import { Ornement } from './Ornement';
 import { Symbole } from './Symbole';
@@ -8,6 +9,8 @@ interface Props {
   livre: Livre;
   recettes: Recette[];
   surOuvrirRecette: (id: string) => void;
+  surNouvelleRecette: () => void;
+  surCompte: () => void;
   /** Position de défilement à restaurer (on revient là où on était). */
   defilementInitial?: number;
   surDefilement?: (position: number) => void;
@@ -21,6 +24,8 @@ export function Sommaire({
   livre,
   recettes,
   surOuvrirRecette,
+  surNouvelleRecette,
+  surCompte,
   defilementInitial = 0,
   surDefilement,
 }: Props) {
@@ -41,6 +46,14 @@ export function Sommaire({
       ref={refPage}
       onScroll={(e) => surDefilement?.(e.currentTarget.scrollTop)}
     >
+      {/* Accès au compte (synchronisation, déconnexion) */}
+      <button type="button" className="bouton-compte" onClick={surCompte} aria-label="Compte">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21c1-5 4-7 8-7s7 2 8 7" />
+        </svg>
+      </button>
+
       <header className="frontispice">
         <div className="frontispice__symbole">
           <Symbole nom={livre.symbole} taille={44} />
@@ -67,7 +80,11 @@ export function Sommaire({
                       onClick={() => surOuvrirRecette(recette.id)}
                     >
                       <span className="chapitre__vignette">
-                        <Symbole nom={recette.symbole} taille={22} />
+                        {recette.photoPrincipale ? (
+                          <ImageCollee id={recette.photoPrincipale} format="vignette" />
+                        ) : (
+                          <Symbole nom={recette.symbole} taille={22} />
+                        )}
                       </span>
                       <span className="chapitre__numero">{enChiffresRomains(numero)}.</span>
                       <span className="chapitre__titre">
@@ -93,7 +110,14 @@ export function Sommaire({
         );
       })}
 
+      {recettes.length === 0 && (
+        <p className="sommaire__vide">Ce grimoire est encore vierge. Écrivez-y votre première recette !</p>
+      )}
+
       <footer className="sommaire__pied">
+        <button type="button" className="bouton bouton--principal" onClick={surNouvelleRecette}>
+          + Nouvelle recette
+        </button>
         <Ornement />
       </footer>
     </div>

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Livre, Recette } from '../types';
 import { repartirEnPages } from '../utilitaires/pagination';
+import { PanneauCompte } from '../composants/PanneauCompte';
 import { Sommaire } from '../composants/Sommaire';
+import { Visionneuse } from '../composants/Visionneuse';
+import { FormulaireRecette } from '../recette/FormulaireRecette';
 import { construireBlocsRecette } from './blocsRecette';
 import { PageRecette } from './PageRecette';
 import { TourneurDePages, type Transition } from './TourneurDePages';
@@ -15,7 +18,14 @@ const RETOUR_SOMMAIRE: Transition = { sens: 'arriere', intercalaires: 5, duree: 
 const PAGE_SUIVANTE: Transition = { sens: 'avant', intercalaires: 0, duree: 0.7, decalage: 0 };
 const PAGE_PRECEDENTE: Transition = { sens: 'arriere', intercalaires: 0, duree: 0.7, decalage: 0 };
 
-type Vue = { type: 'sommaire' } | { type: 'recette'; id: string; page: number };
+/** Les écrans d'un livre. `edition` avec id null = nouvelle recette. */
+type Vue =
+  | { type: 'sommaire' }
+  | { type: 'recette'; id: string; page: number }
+  | { type: 'edition'; id: string | null };
+
+/** Identifie un écran, sans tenir compte du numéro de page. */
+const ecranDe = (vue: Vue) => (vue.type === 'sommaire' ? 'sommaire' : `${vue.type}:${vue.id}`);
 
 interface Navigation {
   vue: Vue;
@@ -23,15 +33,22 @@ interface Navigation {
   transition: Transition | null;
 }
 
+/** Ce qu'on range dans l'historique du navigateur pour chaque écran. */
+interface EtatHistorique {
+  vue?: Vue;
+  image?: string;
+}
+
 interface Props {
   livre: Livre;
+  /** Les recettes de ce livre. */
   recettes: Recette[];
 }
 
 /**
- * Un livre ouvert : sommaire, pages de recettes, pagination automatique,
- * pages qui tournent (swipe, tap sur les bords, flèches du clavier) et
- * gestion du bouton « retour » d'Android.
+ * Un livre ouvert : sommaire, pages de recettes, formulaire, pagination
+ * automatique, pages qui tournent (swipe, tap sur les bords, flèches du clavier)
+ * et gestion du bouton « retour » d'Android.
  */
 export function LivreOuvert({ livre, recettes }: Props) {
   const [navigation, setNavigation] = useState<Navigation>({
@@ -40,19 +57,83 @@ export function LivreOuvert({ livre, recettes }: Props) {
   });
   const { vue } = navigation;
   const recette = vue.type === 'recette' ? recettes.find((r) => r.id === vue.id) : undefined;
+  /** Image agrandie en plein écran, le cas échéant. */
+  const [imageAgrandie, setImageAgrandie] = useState<string | null>(null);
+  const [compteOuvert, setCompteOuvert] = useState(false);
+
+  // Valeurs toujours à jour pour les écouteurs d'événements
+  const refVue = useRef(vue);
+  refVue.current = vue;
+  const refRecettes = useRef(recettes);
+  refRecettes.current = recettes;
+
+  // ---------------------------------------------------------------- Navigation
+  /** Vrai pendant une animation : on ignore alors les demandes de page tournée. */
+  const animationEnCours = useRef(false);
+  const defilementSommaire = useRef(0);
+  /** Premier bloc de la page affichée : sert à rester au même endroit après un redimensionnement. */
+  const blocAncre = useRef(0);
+
+  const allerA = useCallback((nouvelleVue: Vue, transition: Transition) => {
+    animationEnCours.current = true;
+    setNavigation({ vue: nouvelleVue, transition });
+  }, []);
+
+  /**
+   * Ouvre un nouvel écran. Chaque écran ouvert ajoute une entrée à l'historique :
+   * le « retour » d'Android (bouton ou geste depuis le bord) ramène à l'écran
+   * précédent au lieu de quitter l'appli.
+   */
+  const ouvrir = useCallback(
+    (nouvelleVue: Vue, transition: Transition) => {
+      window.history.pushState({ vue: nouvelleVue } satisfies EtatHistorique, '');
+      blocAncre.current = 0;
+      allerA(nouvelleVue, transition);
+    },
+    [allerA],
+  );
+
+  // Rubans, « Annuler », fermeture d'image : même effet que le bouton retour
+  const retour = () => window.history.back();
+
+  const agrandirImage = useCallback((id: string) => {
+    window.history.pushState({ vue: refVue.current, image: id } satisfies EtatHistorique, '');
+    setImageAgrandie(id);
+  }, []);
+
+  useEffect(() => {
+    // Au démarrage on est toujours sur le sommaire : on nettoie un éventuel reste d'historique
+    if (window.history.state) window.history.replaceState(null, '');
+
+    const surChangementHistorique = (evenement: PopStateEvent) => {
+      const etat = (evenement.state ?? {}) as EtatHistorique;
+      setImageAgrandie(etat.image ?? null);
+
+      let cible: Vue = etat.vue ?? { type: 'sommaire' };
+      // Une recette supprimée entre-temps n'existe plus : retour au sommaire
+      const idCible = cible.type === 'sommaire' ? null : cible.id;
+      if (idCible !== null && !refRecettes.current.some((r) => r.id === idCible)) {
+        cible = { type: 'sommaire' };
+      }
+      if (cible.type === 'recette') cible = { ...cible, page: 0 };
+
+      const depart = refVue.current;
+      if (ecranDe(cible) === ecranDe(depart)) return; // on a seulement refermé une image
+      blocAncre.current = 0;
+      allerA(cible, depart.type === 'recette' && cible.type === 'sommaire' ? RETOUR_SOMMAIRE : PAGE_PRECEDENTE);
+    };
+    window.addEventListener('popstate', surChangementHistorique);
+    return () => window.removeEventListener('popstate', surChangementHistorique);
+  }, [allerA]);
 
   // ---------------------------------------------------------------- Pagination
-  const blocs = useMemo(() => (recette ? construireBlocsRecette(recette) : []), [recette]);
+  const blocs = useMemo(() => (recette ? construireBlocsRecette(recette, agrandirImage) : []), [recette, agrandirImage]);
   const refMesure = useRef<HTMLDivElement>(null);
   const refCadre = useRef<HTMLDivElement>(null);
   /** Résultat de la pagination, rattaché à la recette mesurée. */
   const [pagination, setPagination] = useState<{ id: string; pages: number[][] } | null>(null);
   /** Incrémenté quand il faut re-mesurer (taille d'écran, polices chargées). */
   const [versionMesure, setVersionMesure] = useState(0);
-  /** Premier bloc de la page affichée : sert à rester au même endroit après un redimensionnement. */
-  const blocAncre = useRef(0);
-  /** Vrai pendant une animation : on ignore alors les demandes de page tournée. */
-  const animationEnCours = useRef(false);
 
   useEffect(() => {
     const remesurer = () => setVersionMesure((v) => v + 1);
@@ -94,43 +175,6 @@ export function LivreOuvert({ livre, recettes }: Props) {
   const pages = recette && pagination?.id === recette.id ? pagination.pages : null;
   const nombrePages = pages?.length ?? 1;
 
-  // ---------------------------------------------------------------- Navigation
-  const defilementSommaire = useRef(0);
-
-  const allerA = useCallback((nouvelleVue: Vue, transition: Transition) => {
-    animationEnCours.current = true;
-    setNavigation({ vue: nouvelleVue, transition });
-  }, []);
-
-  const ouvrirRecette = (id: string) => {
-    // Une entrée d'historique par recette ouverte : le « retour » d'Android
-    // (bouton ou geste depuis le bord) ramène au sommaire au lieu de quitter l'appli.
-    window.history.pushState({ recette: id }, '');
-    blocAncre.current = 0;
-    allerA({ type: 'recette', id, page: 0 }, OUVERTURE_CHAPITRE);
-  };
-
-  // Le ruban fait la même chose que le bouton retour du téléphone
-  const retourSommaire = () => window.history.back();
-
-  useEffect(() => {
-    // Au démarrage on est toujours sur le sommaire : on nettoie un éventuel reste d'historique
-    if (window.history.state?.recette) window.history.replaceState(null, '');
-
-    const surChangementHistorique = (evenement: PopStateEvent) => {
-      const id: unknown = evenement.state?.recette;
-      if (typeof id === 'string' && recettes.some((r) => r.id === id)) {
-        // Bouton « suivant » du navigateur : on rouvre la recette
-        blocAncre.current = 0;
-        allerA({ type: 'recette', id, page: 0 }, OUVERTURE_CHAPITRE);
-      } else {
-        allerA({ type: 'sommaire' }, RETOUR_SOMMAIRE);
-      }
-    };
-    window.addEventListener('popstate', surChangementHistorique);
-    return () => window.removeEventListener('popstate', surChangementHistorique);
-  }, [recettes, allerA]);
-
   /** Tourne une page : +1 = suivante, -1 = précédente. */
   const tourner = useCallback(
     (pas: 1 | -1) => {
@@ -143,7 +187,7 @@ export function LivreOuvert({ livre, recettes }: Props) {
     [vue, pages, allerA],
   );
 
-  // Clavier (PC) : flèches pour tourner les pages, Échap pour le sommaire
+  // Clavier (PC) : flèches pour tourner les pages, Échap pour revenir en arrière
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
       if (vue.type !== 'recette') return;
@@ -183,7 +227,43 @@ export function LivreOuvert({ livre, recettes }: Props) {
   };
 
   // ------------------------------------------------------------------- Rendu
-  const cle = vue.type === 'sommaire' ? 'sommaire' : `recette:${vue.id}:${vue.page}`;
+  const cle = vue.type === 'recette' ? `recette:${vue.id}:${vue.page}` : ecranDe(vue);
+
+  let page;
+  if (vue.type === 'recette' && recette) {
+    page = (
+      <PageRecette
+        recette={recette}
+        blocs={(pages?.[vue.page] ?? []).map((i) => blocs[i])}
+        numero={vue.page + 1}
+        total={nombrePages}
+        surRetourSommaire={retour}
+        surModifier={() => ouvrir({ type: 'edition', id: recette.id }, PAGE_SUIVANTE)}
+      />
+    );
+  } else if (vue.type === 'edition') {
+    page = (
+      <FormulaireRecette
+        recette={recettes.find((r) => r.id === vue.id) ?? null}
+        livreId={livre.id}
+        surTermine={retour}
+        // Recette supprimée : on saute par-dessus sa page pour revenir au sommaire
+        surSupprimee={() => window.history.go(-2)}
+      />
+    );
+  } else {
+    page = (
+      <Sommaire
+        livre={livre}
+        recettes={recettes}
+        surOuvrirRecette={(id) => ouvrir({ type: 'recette', id, page: 0 }, OUVERTURE_CHAPITRE)}
+        surNouvelleRecette={() => ouvrir({ type: 'edition', id: null }, PAGE_SUIVANTE)}
+        surCompte={() => setCompteOuvert(true)}
+        defilementInitial={defilementSommaire.current}
+        surDefilement={(position) => (defilementSommaire.current = position)}
+      />
+    );
+  }
 
   return (
     <div
@@ -198,23 +278,7 @@ export function LivreOuvert({ livre, recettes }: Props) {
         transition={navigation.transition}
         surFin={() => (animationEnCours.current = false)}
       >
-        {vue.type === 'recette' && recette ? (
-          <PageRecette
-            recette={recette}
-            blocs={(pages?.[vue.page] ?? []).map((i) => blocs[i])}
-            numero={vue.page + 1}
-            total={nombrePages}
-            surRetourSommaire={retourSommaire}
-          />
-        ) : (
-          <Sommaire
-            livre={livre}
-            recettes={recettes}
-            surOuvrirRecette={ouvrirRecette}
-            defilementInitial={defilementSommaire.current}
-            surDefilement={(position) => (defilementSommaire.current = position)}
-          />
-        )}
+        {page}
       </TourneurDePages>
 
       {/* Page de mesure, invisible : même taille et mêmes styles qu'une vraie page,
@@ -228,11 +292,15 @@ export function LivreOuvert({ livre, recettes }: Props) {
               numero={1}
               total={1}
               surRetourSommaire={() => {}}
+              surModifier={() => {}}
               refContenu={refMesure}
             />
           </div>
         </div>
       )}
+
+      {imageAgrandie && <Visionneuse id={imageAgrandie} surFermer={retour} />}
+      {compteOuvert && <PanneauCompte surFermer={() => setCompteOuvert(false)} />}
     </div>
   );
 }

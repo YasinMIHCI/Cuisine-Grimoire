@@ -5,6 +5,7 @@ import '@fontsource/uncial-antiqua/400.css';
 import '@fontsource/im-fell-english/400.css';
 import '@fontsource/im-fell-english/400-italic.css';
 import './styles/global.css';
+import './styles/formulaires.css';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
 

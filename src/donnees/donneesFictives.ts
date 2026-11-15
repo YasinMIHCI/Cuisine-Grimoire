@@ -1,15 +1,23 @@
-// Données fictives de l'étape (a) : un livre et quelques recettes.
-// Elles seront remplacées par Supabase + cache local à l'étape (d).
-import type { Livre, Recette } from '../types';
+// Données d'exemple : un livre et quelques recettes.
+// Elles ne servent qu'en « mode local » (appli non reliée à Supabase), pour
+// avoir de quoi feuilleter au premier lancement.
+import type { ApparenceLivre, Livre, Recette } from '../types';
 
-export const livreFictif: Livre = {
-  id: 'livre-1',
+const DATE = '2026-01-01T00:00:00.000Z';
+const communs = { proprietaireId: 'local', creeLe: DATE, modifieLe: DATE };
+
+/** Apparence du livre montré dans l'intro tant qu'aucun livre n'a été ouvert. */
+export const livreParDefaut: ApparenceLivre = {
   titre: 'Recette et Grimoire',
   couleurCuir: '#5a2415',
   symbole: 'chaudron',
 };
 
-export const recettesFictives: Recette[] = [
+export const livreFictif: Livre = { id: 'livre-1', ...livreParDefaut, ...communs };
+
+type RecetteExemple = Omit<Recette, 'proprietaireId' | 'creeLe' | 'modifieLe' | 'galerie'>;
+
+const exemples: RecetteExemple[] = [
   {
     id: 'r1',
     livreId: 'livre-1',
@@ -212,3 +220,5 @@ export const recettesFictives: Recette[] = [
     notes: 'Se garde un an.',
   },
 ];
+
+export const recettesFictives: Recette[] = exemples.map((r) => ({ ...r, ...communs, galerie: [] }));

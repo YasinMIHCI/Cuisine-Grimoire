@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Recette } from '../types';
 import { formaterDuree, formaterQuantite } from '../utilitaires/format';
+import { ImageCollee } from '../composants/ImageCollee';
 import { Ornement } from '../composants/Ornement';
 
 /**
@@ -14,8 +15,11 @@ export interface Bloc {
   noeud: ReactNode;
 }
 
-/** Découpe une recette en blocs, dans l'ordre de lecture. */
-export function construireBlocsRecette(recette: Recette): Bloc[] {
+/**
+ * Découpe une recette en blocs, dans l'ordre de lecture.
+ * @param surImage appelé quand on tape une image (pour l'agrandir)
+ */
+export function construireBlocsRecette(recette: Recette, surImage: (id: string) => void): Bloc[] {
   const blocs: Bloc[] = [];
 
   blocs.push({
@@ -41,6 +45,14 @@ export function construireBlocsRecette(recette: Recette): Bloc[] {
       </header>
     ),
   });
+
+  if (recette.photoPrincipale) {
+    const id = recette.photoPrincipale;
+    blocs.push({
+      cle: 'photo-principale',
+      noeud: <ImageCollee id={id} format="principale" surClic={() => surImage(id)} alt={recette.titre} />,
+    });
+  }
 
   blocs.push({
     cle: 'titre-ingredients',
@@ -80,6 +92,13 @@ export function construireBlocsRecette(recette: Recette): Bloc[] {
         </div>
       ),
     });
+    if (etape.image) {
+      const id = etape.image;
+      blocs.push({
+        cle: `image-etape-${i}`,
+        noeud: <ImageCollee id={id} format="etape" surClic={() => surImage(id)} alt={`Étape ${i + 1}`} />,
+      });
+    }
   });
 
   if (recette.notes) {
@@ -89,6 +108,27 @@ export function construireBlocsRecette(recette: Recette): Bloc[] {
       noeud: <h2 className="recette__section">Notes</h2>,
     });
     blocs.push({ cle: 'notes', noeud: <p className="notes">{recette.notes}</p> });
+  }
+
+  // Galerie : deux photos par rangée, chaque rangée est un bloc
+  if (recette.galerie.length > 0) {
+    blocs.push({
+      cle: 'titre-galerie',
+      lieAuSuivant: true,
+      noeud: <h2 className="recette__section">Galerie</h2>,
+    });
+    for (let i = 0; i < recette.galerie.length; i += 2) {
+      blocs.push({
+        cle: `galerie-${i}`,
+        noeud: (
+          <div className="galerie-rangee">
+            {recette.galerie.slice(i, i + 2).map((id) => (
+              <ImageCollee key={id} id={id} format="galerie" surClic={() => surImage(id)} />
+            ))}
+          </div>
+        ),
+      });
+    }
   }
 
   return blocs;

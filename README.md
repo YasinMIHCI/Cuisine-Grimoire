@@ -4,6 +4,7 @@ Application web de recettes (PWA installable) au style « vieux grimoire magique
 React + Vite + TypeScript, GSAP, Supabase.
 
 Plan, structure du projet et schéma de base de données : [docs/PLAN.md](docs/PLAN.md).
+Création du projet Supabase : [docs/SUPABASE.md](docs/SUPABASE.md).
 
 ## Lancer en local
 
