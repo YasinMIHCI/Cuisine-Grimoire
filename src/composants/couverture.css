@@ -62,3 +62,13 @@
   color: var(--or-clair);
   text-shadow: 0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.6);
 }
+
+/* Image de couverture, à la place du symbole */
+.couverture__image {
+  width: 58cqw;
+  height: 58cqw;
+  object-fit: cover;
+  border: 0.7cqw solid var(--or);
+  border-radius: 1.5cqw;
+  box-shadow: 0 0.6cqw 1.2cqw rgba(0, 0, 0, 0.5);
+}

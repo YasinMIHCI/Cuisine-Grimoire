@@ -16,7 +16,10 @@ compte, les recettes restent sur l'appareil.
 2. Copier tout le contenu du fichier [`supabase/01_base.sql`](../supabase/01_base.sql),
    le coller, puis cliquer sur **Run**. Le résultat doit être « Success ».
 
-Ce script crée les tables `profils`, `livres`, `recettes`, l'espace de stockage privé
+3. Faire de même avec [`supabase/02_etagere.sql`](../supabase/02_etagere.sql) (image de
+   couverture des livres).
+
+Le premier script crée les tables `profils`, `livres`, `recettes`, l'espace de stockage privé
 `recettes` pour les photos, et les règles qui font que chacun ne voit que ses données.
 
 ## 3. Indiquer l'adresse de l'appli

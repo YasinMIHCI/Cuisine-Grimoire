@@ -9,6 +9,8 @@ import './intro.css';
 interface Props {
   /** Le livre dont on montre la couverture (dernier livre ouvert). */
   livre: ApparenceLivre;
+  /** Miniature de son image de couverture, s'il en a une. */
+  miniature?: string | null;
   /** Appelé quand l'intro est terminée : l'appli peut être utilisée. */
   surFin: () => void;
 }
@@ -38,7 +40,7 @@ const ECART_FEUILLES = 0.13;
  * Seuls `transform` et `opacity` sont animés (GSAP), pour rester à 60 images/s.
  * Un tap pendant l'intro saute directement au flash.
  */
-export function Intro({ livre, surFin }: Props) {
+export function Intro({ livre, miniature, surFin }: Props) {
   const refScene = useRef<HTMLDivElement>(null);
   const refChronologie = useRef<gsap.core.Timeline | null>(null);
   const refSurFin = useRef(surFin);
@@ -302,7 +304,7 @@ export function Intro({ livre, surFin }: Props) {
           {/* Plat de couverture : pivote autour du dos (bord gauche) */}
           <div className="intro__plat">
             <div className="intro__plat-face">
-              <Couverture livre={livre} />
+              <Couverture livre={livre} adresseImage={miniature} />
             </div>
             <div className="intro__plat-face intro__plat-face--interieur" style={{ '--cuir-livre': livre.couleurCuir } as React.CSSProperties} />
           </div>

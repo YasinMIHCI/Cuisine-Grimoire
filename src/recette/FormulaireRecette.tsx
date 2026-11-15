@@ -3,7 +3,7 @@ import { CATEGORIES, SYMBOLE_PAR_CATEGORIE, type Categorie, type Recette } from 
 import { ChoixPhoto } from '../composants/ChoixPhoto';
 import { ImageCollee } from '../composants/ImageCollee';
 import { Ornement } from '../composants/Ornement';
-import { useDepot } from '../donnees/contexte';
+import { useDepot, useEtatDepot } from '../donnees/contexte';
 
 interface Props {
   /** Recette à modifier, ou null pour en créer une nouvelle. */
@@ -12,8 +12,8 @@ interface Props {
   livreId: string;
   /** Appelé après l'enregistrement ou l'abandon. */
   surTermine: () => void;
-  /** Appelé après la suppression de la recette. */
-  surSupprimee: () => void;
+  /** Appelé quand la recette a quitté ce livre (supprimée ou déplacée). */
+  surPartie: () => void;
 }
 
 // Dans le formulaire, tout est du texte : on convertit à l'enregistrement.
@@ -34,8 +34,13 @@ const enNombre = (texte: string) => {
 };
 
 /** Formulaire de création / modification d'une recette, dans le style du grimoire. */
-export function FormulaireRecette({ recette, livreId, surTermine, surSupprimee }: Props) {
+export function FormulaireRecette({ recette, livreId, surTermine, surPartie }: Props) {
   const depot = useDepot();
+  const { livres } = useEtatDepot();
+  /** Livre où ranger la recette : le changer la déplace à l'enregistrement. */
+  const [livreChoisi, setLivreChoisi] = useState(recette?.livreId ?? livreId);
+  const [livreCopie, setLivreCopie] = useState('');
+  const [infoCopie, setInfoCopie] = useState<string | null>(null);
   const [titre, setTitre] = useState(recette?.titre ?? '');
   const [categorie, setCategorie] = useState<Categorie>(recette?.categorie ?? 'Plats');
   const [preparation, setPreparation] = useState(recette ? String(recette.tempsPreparation) : '');
@@ -62,7 +67,8 @@ export function FormulaireRecette({ recette, livreId, surTermine, surSupprimee }
     setEnCours(true);
     await depot.enregistrerRecette({
       // Pour une modification, on repart de la recette existante (id, dates, favori…)
-      ...(recette ?? { livreId, favori: false }),
+      ...(recette ?? { favori: false }),
+      livreId: livreChoisi,
       titre: titre.trim(),
       categorie,
       // On garde le symbole d'origine tant que la catégorie n'a pas changé
@@ -81,13 +87,23 @@ export function FormulaireRecette({ recette, livreId, surTermine, surSupprimee }
       photoPrincipale,
       galerie,
     });
-    surTermine();
+    // Déplacée dans un autre livre : elle n'est plus dans celui-ci
+    if (recette && livreChoisi !== recette.livreId) surPartie();
+    else surTermine();
+  };
+
+  const copier = async () => {
+    if (!recette || !livreCopie) return;
+    setEnCours(true);
+    await depot.copierRecette(recette.id, livreCopie);
+    setEnCours(false);
+    setInfoCopie(`Copie rangée dans « ${livres.find((l) => l.id === livreCopie)?.titre} ».`);
   };
 
   const supprimer = async () => {
     if (!recette || !window.confirm(`Supprimer définitivement « ${recette.titre} » ?`)) return;
     await depot.supprimerRecette(recette.id);
-    surSupprimee();
+    surPartie();
   };
 
   return (
@@ -248,6 +264,42 @@ export function FormulaireRecette({ recette, livreId, surTermine, surSupprimee }
       {/* ----------------------------------------------------------- Notes */}
       <h2 className="recette__section">Notes personnelles</h2>
       <textarea rows={3} aria-label="Notes personnelles" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+      {/* ------------------------------------ Rangement (s'il y a plusieurs livres) */}
+      {livres.length > 1 && (
+        <>
+          <h2 className="recette__section">Rangement</h2>
+          <label className="champ">
+            <span>{recette ? 'Livre (en changer déplace la recette)' : 'Livre'}</span>
+            <select value={livreChoisi} onChange={(e) => setLivreChoisi(e.target.value)}>
+              {livres.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.titre}
+                </option>
+              ))}
+            </select>
+          </label>
+          {recette && (
+            <div className="champ">
+              <span>Copier la recette dans un autre livre</span>
+              <div className="ligne-copie">
+                <select value={livreCopie} onChange={(e) => setLivreCopie(e.target.value)} aria-label="Livre de destination">
+                  <option value="">Choisir un livre…</option>
+                  {livres.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.titre}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" className="bouton bouton--petit" disabled={!livreCopie || enCours} onClick={copier}>
+                  Copier
+                </button>
+              </div>
+              {infoCopie && <p className="message" role="status">{infoCopie}</p>}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="formulaire__actions">
         <button type="submit" className="bouton bouton--principal" disabled={enCours}>

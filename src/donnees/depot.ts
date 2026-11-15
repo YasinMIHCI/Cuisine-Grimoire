@@ -33,6 +33,7 @@ const livreVersLigne = (l: Livre) => ({
   titre: l.titre,
   couleur_cuir: l.couleurCuir,
   symbole: l.symbole,
+  image_couverture: l.imageCouverture ?? null,
   cree_le: l.creeLe,
   modifie_le: l.modifieLe,
   supprime_le: l.supprimeLe ?? null,
@@ -44,6 +45,7 @@ const ligneVersLivre = (x: any): Livre => ({
   titre: x.titre,
   couleurCuir: x.couleur_cuir,
   symbole: x.symbole,
+  imageCouverture: x.image_couverture ?? null,
   creeLe: x.cree_le,
   modifieLe: x.modifie_le,
   supprimeLe: x.supprime_le,
@@ -164,6 +166,7 @@ export class Depot {
   /** Crée ou modifie un livre. */
   async enregistrerLivre(livre: Omit<Livre, keyof Synchronisable> & Partial<Synchronisable>) {
     const date = maintenant();
+    const ancien = livre.id ? this.livres.get(livre.id) : undefined;
     const complet: Livre = {
       ...livre,
       id: livre.id ?? crypto.randomUUID(),
@@ -173,9 +176,59 @@ export class Depot {
       aSynchroniser: true,
     };
     await this.stocker('livres', this.livres, complet);
+    // L'ancienne image de couverture, si elle a été remplacée ou retirée, est effacée
+    if (ancien?.imageCouverture && ancien.imageCouverture !== complet.imageCouverture) {
+      await this.supprimerImage(ancien.imageCouverture);
+    }
     this.publier();
     this.planifierSynchro();
     return complet;
+  }
+
+  /** Supprime un livre, avec toutes ses recettes et leurs images. */
+  async supprimerLivre(id: string) {
+    const livre = this.livres.get(id);
+    if (!livre) return;
+    const date = maintenant();
+    const marque = { supprimeLe: date, modifieLe: date, aSynchroniser: true };
+    await this.stocker('livres', this.livres, { ...livre, ...marque });
+    if (livre.imageCouverture) await this.supprimerImage(livre.imageCouverture);
+    for (const recette of [...this.recettes.values()]) {
+      if (recette.livreId !== id || recette.supprimeLe) continue;
+      await this.stocker('recettes', this.recettes, { ...recette, ...marque });
+      for (const image of imagesDe(recette)) await this.supprimerImage(image);
+    }
+    this.publier();
+    this.planifierSynchro();
+  }
+
+  /**
+   * Copie une recette dans un livre. La copie est indépendante : ses photos sont
+   * dupliquées, pour que supprimer l'une n'efface pas les images de l'autre.
+   */
+  async copierRecette(id: string, livreId: string) {
+    const origine = this.recettes.get(id);
+    if (!origine) return;
+    const etapes = [];
+    for (const etape of origine.etapes) {
+      const image = etape.image ? await this.dupliquerImage(etape.image) : null;
+      etapes.push({ texte: etape.texte, ...(image ? { image } : {}) });
+    }
+    const galerie = [];
+    for (const image of origine.galerie) {
+      const copie = await this.dupliquerImage(image);
+      if (copie) galerie.push(copie);
+    }
+    return this.enregistrerRecette({
+      ...origine,
+      id: undefined,
+      creeLe: undefined,
+      livreId,
+      favori: false,
+      photoPrincipale: origine.photoPrincipale ? await this.dupliquerImage(origine.photoPrincipale) : null,
+      etapes,
+      galerie,
+    });
   }
 
   /** Crée ou modifie une recette. */
@@ -227,6 +280,19 @@ export class Depot {
     await ecrire(this.base, 'images', image);
     this.adressesImages.set(id, Promise.resolve(URL.createObjectURL(blob)));
     return id;
+  }
+
+  /** Duplique une image (null si elle est introuvable, par exemple hors ligne). */
+  private async dupliquerImage(id: string): Promise<string | null> {
+    let image = await lire<ImageLocale>(this.base, 'images', id);
+    if (!image?.blob) {
+      await this.chargerImage(id).catch(() => null); // la télécharge si besoin
+      image = await lire<ImageLocale>(this.base, 'images', id);
+    }
+    if (!image?.blob) return null;
+    const copie = `${crypto.randomUUID()}.${id.split('.').pop()}`;
+    await ecrire(this.base, 'images', { id: copie, blob: image.blob, aEnvoyer: true } satisfies ImageLocale);
+    return copie;
   }
 
   private async supprimerImage(id: string) {
@@ -322,8 +388,8 @@ export class Depot {
       await this.fusionner('livres', this.livres, distantsLivres.data.map(ligneVersLivre));
       await this.fusionner('recettes', this.recettes, distantesRecettes.data.map(ligneVersRecette));
 
-      // Tout premier lancement du compte : on crée son premier livre
-      if (![...this.livres.values()].some((l) => !l.supprimeLe)) {
+      // Tout premier lancement du compte (aucun livre, même supprimé) : on crée son premier livre
+      if (this.livres.size === 0) {
         const date = maintenant();
         await this.stocker('livres', this.livres, {
           id: crypto.randomUUID(),
@@ -388,7 +454,15 @@ export class Depot {
   private async envoyer<T extends Synchronisable>(magasin: 'livres' | 'recettes', carte: Map<string, T>, versLigne: (x: T) => object) {
     const enAttente = [...carte.values()].filter((x) => x.aSynchroniser);
     if (enAttente.length === 0) return;
-    const { error } = await supabase!.from(magasin).upsert(enAttente.map(versLigne));
+    const lignes = enAttente.map(versLigne) as Record<string, unknown>[];
+    let { error } = await supabase!.from(magasin).upsert(lignes);
+    // Base pas encore mise à jour (supabase/02_etagere.sql non exécuté) : on envoie
+    // quand même le reste, sans l'image de couverture.
+    if (error && /image_couverture/.test(error.message)) {
+      ({ error } = await supabase!
+        .from(magasin)
+        .upsert(lignes.map(({ image_couverture: _ignoree, ...reste }) => reste)));
+    }
     if (error) throw error;
     for (const element of enAttente) {
       // Si l'élément a encore changé pendant l'envoi, il repartira au prochain tour

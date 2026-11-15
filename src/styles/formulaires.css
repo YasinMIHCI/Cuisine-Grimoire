@@ -73,6 +73,7 @@
 
 /* Boutons ronds dans les coins d'une page (compte, modifier) */
 .bouton-compte,
+.bouton-etagere,
 .bouton-plume {
   position: absolute;
   top: 12px;
@@ -91,6 +92,7 @@
   right: 16px;
 }
 
+.bouton-etagere,
 .bouton-plume {
   left: 16px;
 }

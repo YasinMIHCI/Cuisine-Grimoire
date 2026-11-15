@@ -35,6 +35,8 @@ interface Navigation {
 
 /** Ce qu'on range dans l'historique du navigateur pour chaque écran. */
 interface EtatHistorique {
+  /** Livre ouvert (géré par Bibliotheque). */
+  livre?: string;
   vue?: Vue;
   image?: string;
 }
@@ -43,6 +45,8 @@ interface Props {
   livre: Livre;
   /** Les recettes de ce livre. */
   recettes: Recette[];
+  /** Retour à l'étagère. */
+  surEtagere: () => void;
 }
 
 /**
@@ -50,7 +54,7 @@ interface Props {
  * automatique, pages qui tournent (swipe, tap sur les bords, flèches du clavier)
  * et gestion du bouton « retour » d'Android.
  */
-export function LivreOuvert({ livre, recettes }: Props) {
+export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
   const [navigation, setNavigation] = useState<Navigation>({
     vue: { type: 'sommaire' },
     transition: null,
@@ -86,25 +90,22 @@ export function LivreOuvert({ livre, recettes }: Props) {
    */
   const ouvrir = useCallback(
     (nouvelleVue: Vue, transition: Transition) => {
-      window.history.pushState({ vue: nouvelleVue } satisfies EtatHistorique, '');
+      window.history.pushState({ livre: livre.id, vue: nouvelleVue } satisfies EtatHistorique, '');
       blocAncre.current = 0;
       allerA(nouvelleVue, transition);
     },
-    [allerA],
+    [allerA, livre.id],
   );
 
   // Rubans, « Annuler », fermeture d'image : même effet que le bouton retour
   const retour = () => window.history.back();
 
   const agrandirImage = useCallback((id: string) => {
-    window.history.pushState({ vue: refVue.current, image: id } satisfies EtatHistorique, '');
+    window.history.pushState({ livre: livre.id, vue: refVue.current, image: id } satisfies EtatHistorique, '');
     setImageAgrandie(id);
-  }, []);
+  }, [livre.id]);
 
   useEffect(() => {
-    // Au démarrage on est toujours sur le sommaire : on nettoie un éventuel reste d'historique
-    if (window.history.state) window.history.replaceState(null, '');
-
     const surChangementHistorique = (evenement: PopStateEvent) => {
       const etat = (evenement.state ?? {}) as EtatHistorique;
       setImageAgrandie(etat.image ?? null);
@@ -247,8 +248,8 @@ export function LivreOuvert({ livre, recettes }: Props) {
         recette={recettes.find((r) => r.id === vue.id) ?? null}
         livreId={livre.id}
         surTermine={retour}
-        // Recette supprimée : on saute par-dessus sa page pour revenir au sommaire
-        surSupprimee={() => window.history.go(-2)}
+        // Recette supprimée ou déplacée : on saute par-dessus sa page pour revenir au sommaire
+        surPartie={() => window.history.go(-2)}
       />
     );
   } else {
@@ -259,6 +260,7 @@ export function LivreOuvert({ livre, recettes }: Props) {
         surOuvrirRecette={(id) => ouvrir({ type: 'recette', id, page: 0 }, OUVERTURE_CHAPITRE)}
         surNouvelleRecette={() => ouvrir({ type: 'edition', id: null }, PAGE_SUIVANTE)}
         surCompte={() => setCompteOuvert(true)}
+        surEtagere={surEtagere}
         defilementInitial={defilementSommaire.current}
         surDefilement={(position) => (defilementSommaire.current = position)}
       />

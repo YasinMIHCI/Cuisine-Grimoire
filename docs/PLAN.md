@@ -8,7 +8,7 @@
 | (b) | Pagination automatique des recettes, page tournée (swipe / tap), défilement rapide de pages à l'ouverture d'un chapitre | ✅ fait |
 | (c) | Intro : chute du livre, impact, ouverture, zoom, flash (GSAP) + version courte `prefers-reduced-motion` | ✅ fait |
 | (d) | Supabase : auth (email + Google), tables + RLS, synchro, cache hors ligne, images compressées, formulaire de recette | ✅ fait (à relier au projet Supabase : voir docs/SUPABASE.md) |
-| (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | à faire |
+| (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | ✅ fait |
 | (f) | Profil, amis (pseudo, lien, QR code), transmissions, réalisations, fil d'activité, pastille | à faire |
 | (g) | Recherche, favoris, portions ajustables, mode cuisine (Wake Lock) | à faire |
 
@@ -51,7 +51,7 @@ src/
   intro/                  animation d'introduction                 (étape c)
   auth/                   session, écran de connexion
   recette/                formulaire de recette
-  bibliotheque/           étagère, couvertures, éditeur de livre   (étape e)
+  bibliotheque/           étagère, éditeur de livre, navigation étagère ↔ livre
   amis/                   amis, transmissions, réalisations, fil   (étape f)
   cuisine/                mode cuisine                             (étape g)
 ```

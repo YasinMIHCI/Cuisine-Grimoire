@@ -11,6 +11,7 @@ interface Props {
   surOuvrirRecette: (id: string) => void;
   surNouvelleRecette: () => void;
   surCompte: () => void;
+  surEtagere: () => void;
   /** Position de défilement à restaurer (on revient là où on était). */
   defilementInitial?: number;
   surDefilement?: (position: number) => void;
@@ -26,6 +27,7 @@ export function Sommaire({
   surOuvrirRecette,
   surNouvelleRecette,
   surCompte,
+  surEtagere,
   defilementInitial = 0,
   surDefilement,
 }: Props) {
@@ -46,6 +48,13 @@ export function Sommaire({
       ref={refPage}
       onScroll={(e) => surDefilement?.(e.currentTarget.scrollTop)}
     >
+      {/* Retour à l'étagère (tous les livres) */}
+      <button type="button" className="bouton-etagere" onClick={surEtagere} aria-label="Retour à l’étagère">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 4v15M9 4v15M5 4h4M5 19h4M13 5l4-1 3 14-4 1zM3 21h18" />
+        </svg>
+      </button>
+
       {/* Accès au compte (synchronisation, déconnexion) */}
       <button type="button" className="bouton-compte" onClick={surCompte} aria-label="Compte">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">

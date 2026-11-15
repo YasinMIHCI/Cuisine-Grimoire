@@ -75,7 +75,23 @@ export interface Livre extends Synchronisable {
   /** Couleur du cuir de la couverture (hex). */
   couleurCuir: string;
   symbole: NomSymbole;
+  /** Identifiant d'une image de couverture ; elle remplace alors le symbole. */
+  imageCouverture?: string | null;
 }
 
 /** Ce qu'il faut d'un livre pour dessiner sa couverture. */
 export type ApparenceLivre = Pick<Livre, 'titre' | 'couleurCuir' | 'symbole'>;
+
+/** Couleurs de cuir proposées pour les couvertures. */
+export const COULEURS_CUIR = [
+  '#5a2415', // brun-rouge
+  '#3d2a1a', // brun
+  '#6b1a1a', // rouge
+  '#7a5a1e', // ocre
+  '#1f3b2d', // vert
+  '#1e2f4f', // bleu
+  '#4a1f3d', // prune
+  '#2b2b2b', // noir
+] as const;
+
+export const SYMBOLES: NomSymbole[] = ['chaudron', 'feuille', 'etoile', 'coupe', 'epi', 'flamme', 'poisson', 'lune'];

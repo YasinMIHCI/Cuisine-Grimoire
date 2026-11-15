@@ -3,14 +3,14 @@ import { EcranConnexion } from './auth/EcranConnexion';
 import { FournisseurSession, useSession } from './auth/session';
 import { livreParDefaut } from './donnees/donneesFictives';
 import { Intro } from './intro/Intro';
-import { Bibliotheque, CLE_DERNIER_LIVRE, PageAttente } from './livre/Bibliotheque';
+import { Bibliotheque, CLE_DERNIER_LIVRE, PageAttente } from './bibliotheque/Bibliotheque';
 import type { ApparenceLivre } from './types';
 
 /** Apparence du dernier livre ouvert, mémorisée sur l'appareil. */
-function lireDernierLivre(): ApparenceLivre {
+function lireDernierLivre(): ApparenceLivre & { miniature?: string | null } {
   try {
     const memorise = localStorage.getItem(CLE_DERNIER_LIVRE);
-    if (memorise) return { ...livreParDefaut, ...(JSON.parse(memorise) as Partial<ApparenceLivre>) };
+    if (memorise) return { ...livreParDefaut, ...JSON.parse(memorise) };
   } catch {
     // stockage indisponible ou illisible : on garde le livre par défaut
   }
@@ -38,7 +38,7 @@ function Contenu() {
       {session.statut === 'deconnecte' && <EcranConnexion />}
       {/* `key` : en changeant de compte, on repart de données vierges */}
       {session.statut === 'connecte' && <Bibliotheque key={session.uid} uid={session.uid} />}
-      {introEnCours && <Intro livre={livreIntro} surFin={() => setIntroEnCours(false)} />}
+      {introEnCours && <Intro livre={livreIntro} miniature={livreIntro.miniature} surFin={() => setIntroEnCours(false)} />}
     </div>
   );
 }
