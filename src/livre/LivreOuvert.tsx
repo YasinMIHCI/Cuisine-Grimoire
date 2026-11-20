@@ -2,9 +2,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Livre, Recette } from '../types';
 import { repartirEnPages } from '../utilitaires/pagination';
 import { PanneauCompte } from '../composants/PanneauCompte';
-import { Sommaire } from '../composants/Sommaire';
+import { Sommaire, type FiltreSommaire } from '../composants/Sommaire';
 import { Visionneuse } from '../composants/Visionneuse';
+import { useDepot } from '../donnees/contexte';
 import { FormulaireRecette } from '../recette/FormulaireRecette';
+import { ModeCuisine } from '../cuisine/ModeCuisine';
+import { useSocial } from '../amis/contexte';
+import { PanneauTransmettre } from '../amis/PanneauTransmettre';
+import { PanneauRealisation, useRealisations } from '../amis/realisations';
+import type { SourceEnvoi } from '../amis/social';
 import { construireBlocsRecette } from './blocsRecette';
 import { PageRecette } from './PageRecette';
 import { TourneurDePages, type Transition } from './TourneurDePages';
@@ -38,15 +44,37 @@ interface EtatHistorique {
   /** Livre ouvert (géré par Bibliotheque). */
   livre?: string;
   vue?: Vue;
-  image?: string;
 }
+
+/** Fenêtre affichée par-dessus le livre. */
+type Superpose =
+  | { type: 'image'; id: string }
+  | { type: 'photo'; adresse: string }
+  | { type: 'cuisine' }
+  | { type: 'transmettre'; source: SourceEnvoi }
+  | { type: 'realisation' }
+  | { type: 'compte' };
 
 interface Props {
   livre: Livre;
   /** Les recettes de ce livre. */
   recettes: Recette[];
+  /** Recette à ouvrir dès l'arrivée (depuis une recherche ou le fil d'activité). */
+  recetteInitiale?: string;
   /** Retour à l'étagère. */
   surEtagere: () => void;
+  /** Ouvre le cercle des amis. */
+  surAmis: () => void;
+  /** Ouvre une recette d'un autre livre. */
+  surOuvrirAilleurs: (livreId: string, recetteId: string) => void;
+}
+
+/** Vue de départ : celle de l'historique si on revient sur ce livre, sinon le sommaire. */
+function vueInitiale(livreId: string, recettes: Recette[]): Vue {
+  const etat = window.history.state as EtatHistorique | null;
+  const vue = etat?.livre === livreId ? etat.vue : undefined;
+  if (vue?.type === 'recette' && recettes.some((r) => r.id === vue.id)) return { ...vue, page: 0 };
+  return { type: 'sommaire' };
 }
 
 /**
@@ -54,16 +82,21 @@ interface Props {
  * automatique, pages qui tournent (swipe, tap sur les bords, flèches du clavier)
  * et gestion du bouton « retour » d'Android.
  */
-export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
-  const [navigation, setNavigation] = useState<Navigation>({
-    vue: { type: 'sommaire' },
+export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surAmis, surOuvrirAilleurs }: Props) {
+  const depot = useDepot();
+  const social = useSocial();
+  const [navigation, setNavigation] = useState<Navigation>(() => ({
+    vue: vueInitiale(livre.id, recettes),
     transition: null,
-  });
+  }));
   const { vue } = navigation;
   const recette = vue.type === 'recette' ? recettes.find((r) => r.id === vue.id) : undefined;
-  /** Image agrandie en plein écran, le cas échéant. */
-  const [imageAgrandie, setImageAgrandie] = useState<string | null>(null);
-  const [compteOuvert, setCompteOuvert] = useState(false);
+  const [superpose, setSuperpose] = useState<Superpose | null>(null);
+  const fermerSuperpose = useCallback(() => setSuperpose(null), []);
+  /** Portions choisies pour la recette affichée (sinon celles de la recette). */
+  const [choixPortions, setChoixPortions] = useState<{ id: string; portions: number } | null>(null);
+  const portions = recette && choixPortions?.id === recette.id ? choixPortions.portions : (recette?.portions ?? 1);
+  const [filtre, setFiltre] = useState<FiltreSommaire>({ texte: '', favoris: false, partout: false });
 
   // Valeurs toujours à jour pour les écouteurs d'événements
   const refVue = useRef(vue);
@@ -97,19 +130,13 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
     [allerA, livre.id],
   );
 
-  // Rubans, « Annuler », fermeture d'image : même effet que le bouton retour
+  // Ruban, « Annuler » : même effet que le bouton retour
   const retour = () => window.history.back();
-
-  const agrandirImage = useCallback((id: string) => {
-    window.history.pushState({ livre: livre.id, vue: refVue.current, image: id } satisfies EtatHistorique, '');
-    setImageAgrandie(id);
-  }, [livre.id]);
 
   useEffect(() => {
     const surChangementHistorique = (evenement: PopStateEvent) => {
       const etat = (evenement.state ?? {}) as EtatHistorique;
-      setImageAgrandie(etat.image ?? null);
-
+      if (etat.livre !== undefined && etat.livre !== livre.id) return; // un autre livre prend la main
       let cible: Vue = etat.vue ?? { type: 'sommaire' };
       // Une recette supprimée entre-temps n'existe plus : retour au sommaire
       const idCible = cible.type === 'sommaire' ? null : cible.id;
@@ -119,16 +146,47 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
       if (cible.type === 'recette') cible = { ...cible, page: 0 };
 
       const depart = refVue.current;
-      if (ecranDe(cible) === ecranDe(depart)) return; // on a seulement refermé une image
+      if (ecranDe(cible) === ecranDe(depart)) return; // on a seulement refermé un panneau
       blocAncre.current = 0;
       allerA(cible, depart.type === 'recette' && cible.type === 'sommaire' ? RETOUR_SOMMAIRE : PAGE_PRECEDENTE);
     };
     window.addEventListener('popstate', surChangementHistorique);
     return () => window.removeEventListener('popstate', surChangementHistorique);
-  }, [allerA]);
+  }, [allerA, livre.id]);
+
+  // Arrivée depuis une recherche ou le fil d'activité : on ouvre la recette
+  useEffect(() => {
+    if (recetteInitiale && recettes.some((r) => r.id === recetteInitiale)) {
+      ouvrir({ type: 'recette', id: recetteInitiale, page: 0 }, OUVERTURE_CHAPITRE);
+    }
+    // (une seule fois, à l'ouverture du livre)
+  }, []);
+
+  // ------------------------------------------------------------ Réalisations
+  const realisations = useRealisations(recette);
 
   // ---------------------------------------------------------------- Pagination
-  const blocs = useMemo(() => (recette ? construireBlocsRecette(recette, agrandirImage) : []), [recette, agrandirImage]);
+  const surImage = useCallback((id: string) => setSuperpose({ type: 'image', id }), []);
+  const surAdresse = useCallback((adresse: string) => setSuperpose({ type: 'photo', adresse }), []);
+  const blocs = useMemo(
+    () =>
+      recette
+        ? construireBlocsRecette(recette, {
+            portions,
+            surPortions: (n) => setChoixPortions({ id: recette.id, portions: n }),
+            surImage,
+            surAdresse,
+            surFavori: () => void depot.basculerFavori(recette.id),
+            surCuisine: () => setSuperpose({ type: 'cuisine' }),
+            surTransmettre: () => setSuperpose({ type: 'transmettre', source: { type: 'recette', recette } }),
+            surModifier: () => ouvrir({ type: 'edition', id: recette.id }, PAGE_SUIVANTE),
+            realisations,
+            uid: social.uid,
+            surNouvelleRealisation: () => setSuperpose({ type: 'realisation' }),
+          })
+        : [],
+    [recette, portions, surImage, surAdresse, depot, ouvrir, realisations, social.uid],
+  );
   const refMesure = useRef<HTMLDivElement>(null);
   const refCadre = useRef<HTMLDivElement>(null);
   /** Résultat de la pagination, rattaché à la recette mesurée. */
@@ -155,6 +213,7 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
       hauteurs,
       blocs.map((b) => b.lieAuSuivant === true),
       contenu.clientHeight,
+      blocs.map((b) => b.debutPage === true),
     );
     setPagination((ancienne) =>
       ancienne && ancienne.id === recette.id && JSON.stringify(ancienne.pages) === JSON.stringify(pages)
@@ -191,21 +250,21 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
   // Clavier (PC) : flèches pour tourner les pages, Échap pour revenir en arrière
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
-      if (vue.type !== 'recette') return;
+      if (vue.type !== 'recette' || superpose) return;
       if (e.key === 'ArrowRight') tourner(1);
       else if (e.key === 'ArrowLeft') tourner(-1);
       else if (e.key === 'Escape') window.history.back();
     };
     window.addEventListener('keydown', surTouche);
     return () => window.removeEventListener('keydown', surTouche);
-  }, [vue.type, tourner]);
+  }, [vue.type, tourner, superpose]);
 
   // Gestes : swipe horizontal, ou tap sur le bord gauche / droit de la page
   const depart = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const surAppui = (e: React.PointerEvent) => {
-    const surBouton = (e.target as Element).closest('button, a, input, textarea, select');
-    depart.current = surBouton ? null : { x: e.clientX, y: e.clientY, t: e.timeStamp };
+    const surBouton = (e.target as Element).closest('button, a, input, textarea, select, label');
+    depart.current = surBouton || superpose ? null : { x: e.clientX, y: e.clientY, t: e.timeStamp };
   };
 
   const surRelachement = (e: React.PointerEvent) => {
@@ -235,11 +294,11 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
     page = (
       <PageRecette
         recette={recette}
-        blocs={(pages?.[vue.page] ?? []).map((i) => blocs[i])}
+        // (le filtre écarte un bloc disparu, le temps que la pagination soit recalculée)
+        blocs={(pages?.[vue.page] ?? []).map((i) => blocs[i]).filter((b) => b !== undefined)}
         numero={vue.page + 1}
         total={nombrePages}
         surRetourSommaire={retour}
-        surModifier={() => ouvrir({ type: 'edition', id: recette.id }, PAGE_SUIVANTE)}
       />
     );
   } else if (vue.type === 'edition') {
@@ -257,10 +316,15 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
       <Sommaire
         livre={livre}
         recettes={recettes}
+        filtre={filtre}
+        surFiltre={setFiltre}
         surOuvrirRecette={(id) => ouvrir({ type: 'recette', id, page: 0 }, OUVERTURE_CHAPITRE)}
+        surOuvrirAilleurs={surOuvrirAilleurs}
         surNouvelleRecette={() => ouvrir({ type: 'edition', id: null }, PAGE_SUIVANTE)}
-        surCompte={() => setCompteOuvert(true)}
+        surCompte={() => setSuperpose({ type: 'compte' })}
+        surAmis={surAmis}
         surEtagere={surEtagere}
+        surTransmettreLivre={() => setSuperpose({ type: 'transmettre', source: { type: 'livre', livre, recettes } })}
         defilementInitial={defilementSommaire.current}
         surDefilement={(position) => (defilementSommaire.current = position)}
       />
@@ -288,21 +352,31 @@ export function LivreOuvert({ livre, recettes, surEtagere }: Props) {
       {recette && (
         <div className="feuille feuille--mesure" aria-hidden="true" inert>
           <div className="feuille__recto parchemin">
-            <PageRecette
-              recette={recette}
-              blocs={blocs}
-              numero={1}
-              total={1}
-              surRetourSommaire={() => {}}
-              surModifier={() => {}}
-              refContenu={refMesure}
-            />
+            <PageRecette recette={recette} blocs={blocs} numero={1} total={1} surRetourSommaire={() => {}} refContenu={refMesure} />
           </div>
         </div>
       )}
 
-      {imageAgrandie && <Visionneuse id={imageAgrandie} surFermer={retour} />}
-      {compteOuvert && <PanneauCompte surFermer={() => setCompteOuvert(false)} />}
+      {superpose?.type === 'image' && <Visionneuse id={superpose.id} surFermer={fermerSuperpose} />}
+      {superpose?.type === 'photo' && <Visionneuse adresse={superpose.adresse} surFermer={fermerSuperpose} />}
+      {superpose?.type === 'cuisine' && recette && (
+        <ModeCuisine recette={recette} portions={portions} surFermer={fermerSuperpose} />
+      )}
+      {superpose?.type === 'transmettre' && (
+        <PanneauTransmettre
+          source={superpose.source}
+          surFermer={fermerSuperpose}
+          surVoirAmis={() => {
+            // On referme le panneau (retour), puis on ouvre le cercle des amis
+            window.history.back();
+            setTimeout(surAmis, 250);
+          }}
+        />
+      )}
+      {superpose?.type === 'realisation' && recette && (
+        <PanneauRealisation recette={recette} surFermer={fermerSuperpose} surPubliee={realisations.recharger} />
+      )}
+      {superpose?.type === 'compte' && <PanneauCompte surFermer={fermerSuperpose} />}
     </div>
   );
 }

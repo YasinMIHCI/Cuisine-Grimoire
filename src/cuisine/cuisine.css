@@ -1,0 +1,198 @@
+/* ==========================================================================
+   Mode cuisine : plein écran, gros caractères, une étape à la fois
+   ========================================================================== */
+
+.cuisine {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: max(10px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  background:
+    var(--grain),
+    radial-gradient(ellipse at center, var(--parchemin-clair) 0%, var(--parchemin) 65%, var(--parchemin-fonce) 100%);
+  touch-action: pan-y;
+  animation: apparition 0.25s ease-out;
+}
+
+.cuisine__entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cuisine__fermer {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--rouge-enluminure);
+  border: 1px solid var(--or);
+  border-radius: 50%;
+  background: rgba(255, 245, 215, 0.6);
+}
+
+.cuisine__titre {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.cuisine__titre span {
+  overflow: hidden;
+  font-family: var(--police-titre);
+  font-size: 1.15rem;
+  color: var(--rouge-enluminure);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cuisine__titre small {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.cuisine__minuteur-libre {
+  flex: none;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 0.9rem;
+  border: 1px solid var(--or);
+  border-radius: 20px;
+  background: rgba(255, 245, 215, 0.6);
+}
+
+.cuisine__minuteurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.minuteur {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+  font-size: 0.95rem;
+  color: var(--parchemin-clair);
+  border-radius: 18px;
+  background: #4a2c14;
+}
+
+.minuteur strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+}
+
+.minuteur button {
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  color: inherit;
+}
+
+.minuteur--fini {
+  background: #c0281a;
+  animation: pulsation 0.8s ease-in-out infinite;
+}
+
+.cuisine__progression {
+  height: 4px;
+  margin: 10px 0 4px;
+  border-radius: 2px;
+  background: rgba(166, 124, 30, 0.25);
+}
+
+.cuisine__progression span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--or);
+  transition: width 0.3s;
+}
+
+.cuisine__contenu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 2px;
+  font-size: 1.45rem;
+  line-height: 1.5;
+}
+
+.cuisine__rubrique {
+  margin-bottom: 12px;
+  font-family: var(--police-titre);
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--or);
+  text-shadow: 0 1px 0 rgba(255, 245, 210, 0.7);
+}
+
+.cuisine__rubrique small {
+  font-family: var(--police-texte);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.cuisine__texte {
+  margin-bottom: 14px;
+}
+
+.cuisine__duree {
+  font-size: 1.1rem;
+}
+
+.cuisine__ingredients li {
+  border-bottom: 1px dotted rgba(93, 70, 48, 0.3);
+}
+
+.coche {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.coche input {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  accent-color: var(--rouge-enluminure);
+}
+
+.coche--faite span {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.cuisine__fin {
+  text-align: center;
+  padding-top: 20%;
+}
+
+.cuisine__pied {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.cuisine__pied .bouton {
+  min-height: 56px;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+@media (min-width: 700px) {
+  .cuisine {
+    padding-left: max(16px, calc(50% - 340px));
+    padding-right: max(16px, calc(50% - 340px));
+  }
+}

@@ -327,3 +327,157 @@
 .panneau .recette__section {
   margin-top: 0;
 }
+
+/* --- Recette : actions, portions, marque-page ------------------------------ */
+
+.recette__transmis {
+  margin-top: 2px;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.recette__actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px 2px;
+  font-size: 0.78rem;
+  color: var(--encre-douce);
+  border: 1px solid rgba(166, 124, 30, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 245, 215, 0.45);
+}
+
+.action:active {
+  background: rgba(166, 124, 30, 0.2);
+}
+
+/* Favori actif : marque-page doré plein */
+.action--active {
+  color: #7a5a14;
+  border-color: var(--or);
+  background: linear-gradient(rgba(240, 210, 120, 0.7), rgba(214, 170, 60, 0.55));
+}
+
+.action--active svg path {
+  fill: currentColor;
+}
+
+.portions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.portions__bouton {
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--rouge-enluminure);
+  border: 1px solid var(--or);
+  border-radius: 50%;
+  background: rgba(255, 245, 215, 0.6);
+}
+
+.portions__bouton:disabled {
+  opacity: 0.4;
+}
+
+.portions__nombre {
+  min-width: 1.6em;
+}
+
+.portions__nombre--ajuste {
+  color: var(--rouge-enluminure);
+  font-weight: 700;
+}
+
+.recette__ajuste {
+  font-family: var(--police-texte);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+/* Marque-page doré qui dépasse en haut à gauche d'une recette favorite */
+.marque-page {
+  position: absolute;
+  top: -4px;
+  left: 28px;
+  z-index: 2;
+  width: 22px;
+  height: 64px;
+  background: linear-gradient(90deg, #a67c1e, #f0d27a 45%, #b8892f);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* --- Recherche ---------------------------------------------------------------- */
+
+.recherche {
+  margin: 4px 0 6px;
+}
+
+.recherche__champ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--encre-douce);
+  border: 1px solid rgba(166, 124, 30, 0.6);
+  border-radius: 22px;
+  background: rgba(255, 245, 215, 0.6);
+}
+
+.recherche__champ input {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  font: inherit;
+  color: var(--encre);
+  border: 0;
+  background: none;
+  outline: none;
+}
+
+.recherche__filtres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.filtre {
+  min-height: 34px;
+  padding: 2px 12px;
+  font-size: 0.9rem;
+  color: var(--encre-douce);
+  border: 1px solid rgba(166, 124, 30, 0.6);
+  border-radius: 17px;
+  background: rgba(255, 245, 215, 0.4);
+}
+
+.filtre[aria-pressed='true'] {
+  color: var(--parchemin-clair);
+  border-color: #5a170e;
+  background: var(--rouge-enluminure);
+}
+
+.chapitre__indice {
+  display: block;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}

@@ -205,3 +205,36 @@
   flex: none;
   margin: 0;
 }
+
+/* Recherche dans toute la bibliothèque */
+.etagere__entete .bouton-etagere {
+  top: 20px;
+  color: var(--or-clair);
+  border-color: var(--or);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.etagere__recherche {
+  padding: 8px 20px 0;
+}
+
+.etagere__recherche .recherche__champ {
+  background: rgba(255, 245, 215, 0.85);
+}
+
+.etagere__recherche .filtre {
+  color: var(--or-clair);
+  border-color: var(--or);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.etagere__recherche .filtre[aria-pressed='true'] {
+  color: var(--parchemin-clair);
+  background: var(--rouge-enluminure);
+}
+
+.etagere__resultats {
+  position: relative;
+  margin: 12px 14px 24px;
+  padding: 14px 16px 18px;
+}

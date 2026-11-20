@@ -17,7 +17,12 @@ compte, les recettes restent sur l'appareil.
    le coller, puis cliquer sur **Run**. Le résultat doit être « Success ».
 
 3. Faire de même avec [`supabase/02_etagere.sql`](../supabase/02_etagere.sql) (image de
-   couverture des livres).
+   couverture des livres), puis avec [`supabase/03_amis.sql`](../supabase/03_amis.sql)
+   (profils, amis, transmissions, réalisations, fil d'activité).
+
+Les scripts peuvent être relancés sans risque. Tant que le troisième n'est pas exécuté,
+l'appli fonctionne normalement mais le « Cercle des amis » affiche qu'une mise à jour de
+la base est nécessaire.
 
 Le premier script crée les tables `profils`, `livres`, `recettes`, l'espace de stockage privé
 `recettes` pour les photos, et les règles qui font que chacun ne voit que ses données.
@@ -26,7 +31,8 @@ Le premier script crée les tables `profils`, `livres`, `recettes`, l'espace de 
 
 Menu **Authentication** → **URL Configuration** :
 
-- **Site URL** : `https://yasinmihci.github.io/Cuisine-Grimoire/`
+- **Site URL** : `https://yasinmihci.github.io/Cuisine-Grimoire/` (c'est aussi l'adresse
+  des liens d'invitation envoyés à vos amis)
 - **Redirect URLs** → « Add URL » : la même adresse, puis `http://localhost:5173/`
   (pour les tests sur ordinateur).
 

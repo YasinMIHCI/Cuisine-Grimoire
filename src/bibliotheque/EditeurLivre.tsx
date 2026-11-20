@@ -4,6 +4,7 @@ import { ChoixPhoto } from '../composants/ChoixPhoto';
 import { CouvertureLivre } from '../composants/Couverture';
 import { Symbole } from '../composants/Symbole';
 import { useDepot } from '../donnees/contexte';
+import { usePanneauHistorique } from '../utilitaires/historique';
 
 interface Props {
   /** Livre à modifier, ou null pour en créer un. */
@@ -16,6 +17,7 @@ interface Props {
  * image de couverture. L'aperçu de la couverture se met à jour en direct.
  */
 export function EditeurLivre({ livre, surFermer }: Props) {
+  const fermer = usePanneauHistorique(surFermer);
   const depot = useDepot();
   const [titre, setTitre] = useState(livre?.titre ?? '');
   const [couleurCuir, setCouleurCuir] = useState<string>(livre?.couleurCuir ?? COULEURS_CUIR[0]);
@@ -26,7 +28,7 @@ export function EditeurLivre({ livre, surFermer }: Props) {
     evenement.preventDefault();
     if (!titre.trim()) return;
     await depot.enregistrerLivre({ ...livre, titre: titre.trim(), couleurCuir, symbole, imageCouverture });
-    surFermer();
+    fermer();
   };
 
   const supprimer = async () => {
@@ -34,11 +36,11 @@ export function EditeurLivre({ livre, surFermer }: Props) {
     const message = `Supprimer définitivement « ${livre.titre} » et toutes ses recettes ?`;
     if (!window.confirm(message)) return;
     await depot.supprimerLivre(livre.id);
-    surFermer();
+    fermer();
   };
 
   return (
-    <div className="voile" onClick={surFermer}>
+    <div className="voile" onClick={fermer}>
       <form
         className="panneau panneau--defilant parchemin formulaire"
         role="dialog"
@@ -119,7 +121,7 @@ export function EditeurLivre({ livre, surFermer }: Props) {
           <button type="submit" className="bouton bouton--principal">
             {livre ? 'Enregistrer' : 'Créer le livre'}
           </button>
-          <button type="button" className="bouton" onClick={surFermer}>
+          <button type="button" className="bouton" onClick={fermer}>
             Annuler
           </button>
           {livre && (

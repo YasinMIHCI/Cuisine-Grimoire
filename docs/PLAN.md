@@ -9,8 +9,8 @@
 | (c) | Intro : chute du livre, impact, ouverture, zoom, flash (GSAP) + version courte `prefers-reduced-motion` | ✅ fait |
 | (d) | Supabase : auth (email + Google), tables + RLS, synchro, cache hors ligne, images compressées, formulaire de recette | ✅ fait (à relier au projet Supabase : voir docs/SUPABASE.md) |
 | (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | ✅ fait |
-| (f) | Profil, amis (pseudo, lien, QR code), transmissions, réalisations, fil d'activité, pastille | à faire |
-| (g) | Recherche, favoris, portions ajustables, mode cuisine (Wake Lock) | à faire |
+| (f) | Profil, amis (pseudo, lien, QR code), transmissions, réalisations, fil d'activité, pastille | ✅ fait (script supabase/03_amis.sql à exécuter) |
+| (g) | Recherche, favoris, portions ajustables, mode cuisine (Wake Lock) | ✅ fait |
 
 ## 2. Choix techniques
 
@@ -52,8 +52,8 @@ src/
   auth/                   session, écran de connexion
   recette/                formulaire de recette
   bibliotheque/           étagère, éditeur de livre, navigation étagère ↔ livre
-  amis/                   amis, transmissions, réalisations, fil   (étape f)
-  cuisine/                mode cuisine                             (étape g)
+  amis/                   profil, amis, transmissions, réalisations, fil, pastille
+  cuisine/                mode cuisine, minuteurs
 ```
 
 ## 4. Schéma de base de données (Supabase / PostgreSQL)
@@ -68,19 +68,20 @@ sont synchronisées. Les utilisateurs eux-mêmes sont gérés par `auth.users` (
 
 | Table | Colonnes principales | Rôle |
 |---|---|---|
-| `profils` | `id` → auth.users, `pseudo` (unique, insensible à la casse), `avatar_chemin`, `code_invitation` (unique), `dernier_livre_id` | Profil public minimal |
+| `profils` | `id` → auth.users, `pseudo` (unique, insensible à la casse), `avatar` (petite image encodée), `code_invitation` (unique) | Profil public minimal |
 | `livres` | `proprietaire_id`, `titre`, `couleur_cuir`, `symbole`, `image_couverture`, `position`, `transmis_par` | Livres de l'étagère |
 | `recettes` | `livre_id`, `proprietaire_id`, `titre`, `categorie`, `temps_preparation`, `temps_cuisson`, `portions`, `ingredients` (jsonb), `etapes` (jsonb, avec image optionnelle), `notes`, `favori`, `photo_principale`, `galerie` (jsonb), `supprime_le` ; à l'étape (f) : `origine_id`, `transmis_par` | Chapitres d'un livre |
 | `amities` | `demandeur_id`, `destinataire_id`, `statut` (`en_attente` / `acceptee`), paire unique | Demandes et amitiés |
-| `transmissions` | `expediteur_id`, `destinataire_id`, `livre_id` **ou** `recette_id`, `statut` (`proposee` / `acceptee` / `refusee`), `copie_id` | Propositions de partage |
-| `realisations` | `origine_id` (recette d'origine), `auteur_id`, `photo_chemin`, `commentaire` | Photos de résultat |
-| `activites` | `utilisateur_id` (qui la voit), `acteur_id`, `type`, `recette_id`, `lue` | Fil d'activité + pastille |
+| `envois` | `expediteur_id`, `expediteur_pseudo`, `type` (`livre` / `recette`), `titre`, `contenu` (copie figée en JSON) | Ce qui est transmis ; photos dans le stockage `partages/<id>/…` |
+| `transmissions` | `envoi_id`, `expediteur_id`, `destinataire_id`, `statut` (`proposee` / `acceptee` / `refusee`) | Une proposition par ami destinataire |
+| `realisations` | `origine_id` (recette d'origine), `auteur_id`, `auteur_pseudo`, `titre_recette`, `photo_chemin`, `commentaire` | Photos de résultat |
+| `activites` | `destinataire_id` (qui la voit), `acteur_id`, `acteur_pseudo`, `type`, `details`, `lue` | Fil d'activité + pastille (créées par des déclencheurs) |
 
 `origine_id` : pour une recette créée par l'utilisateur, c'est son propre `id` ; pour une
 copie reçue, c'est celui de la recette d'origine. Toutes les copies d'une même recette
 partagent donc le même `origine_id`.
 
-Stockage (espaces privés, chemins `<id utilisateur>/…`) : `recettes` (créé), puis `avatars` et `realisations` à l'étape (f).
+Stockage (espaces privés) : `recettes` (`<id utilisateur>/…`), `partages` (`<id de l'envoi>/…`), `realisations` (`<id auteur>/…`).
 
 ### Règles de sécurité (RLS)
 
@@ -92,11 +93,35 @@ Stockage (espaces privés, chemins `<id utilisateur>/…`) : `recettes` (créé)
   que pseudo + avatar.
 - `amities` : visibles par les deux personnes ; seul le destinataire accepte ; chacun
   peut supprimer (refuser / retirer un ami).
-- `transmissions` : visibles par l'expéditeur et le destinataire ; création seulement
-  vers un ami ; l'acceptation passe par la fonction `accepter_transmission(id, livre_cible)`
-  qui effectue la copie.
+- `envois` / `transmissions` : visibles par l'expéditeur et les destinataires ; création
+  seulement vers un ami ; le destinataire répond par `repondre_transmission(id, accepte)`
+  et fait lui-même sa copie (photos comprises) dans sa bibliothèque.
 - `realisations` : lisibles par l'auteur et par ses amis qui possèdent une recette de
   même `origine_id` ; suppression par l'auteur uniquement.
 - `activites` : lisibles par leur seul destinataire ; créées par des déclencheurs SQL.
 - Stockage : lecture/écriture dans son propre dossier ; les photos de réalisation sont
   lisibles selon la même règle que la table `realisations`.
+
+## 5. Ajouts au-delà du cahier des charges
+
+- **Lien d'invitation direct** : ouvrir le lien (ou scanner le QR code) d'un ami fait
+  rejoindre son cercle sans demande à accepter ; le lien peut être renouvelé.
+- **Minuteurs en mode cuisine** : les durées écrites dans les étapes (« 30 minutes »,
+  « 1 h 30 ») deviennent des minuteurs, avec sonnerie et vibration ; minuteur libre en plus.
+- **Liste de courses** à cocher et à partager (mode cuisine), **recette en texte** à
+  envoyer par SMS ou messagerie aux proches qui n'ont pas l'appli.
+- **Arrondis naturels** des quantités quand on change le nombre de portions.
+- **Pastille sur l'icône** de l'appli installée (là où le système le permet).
+- **Geste retour d'Android** : il referme panneaux, image agrandie et mode cuisine avant
+  de changer d'écran.
+- **Mode dégradé** : tant qu'un script SQL n'est pas exécuté, l'appli continue de
+  fonctionner et de synchroniser, et indique quoi faire.
+
+## 6. Tests
+
+- `supabase/` : les trois scripts sont testés sur PostgreSQL 16 avec une imitation des
+  schémas Supabase (`auth`, `storage`) — 54 vérifications de sécurité (ce que chaque
+  compte peut voir ou faire, et ce qui lui est refusé).
+- Parcours complets testés dans Chromium (taille téléphone) : mode local, synchronisation
+  avec le vrai projet Supabase, et parcours social à trois comptes sur un serveur local
+  imitant Supabase.

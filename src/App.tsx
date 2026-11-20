@@ -4,7 +4,27 @@ import { FournisseurSession, useSession } from './auth/session';
 import { livreParDefaut } from './donnees/donneesFictives';
 import { Intro } from './intro/Intro';
 import { Bibliotheque, CLE_DERNIER_LIVRE, PageAttente } from './bibliotheque/Bibliotheque';
+import { CLE_INVITATION } from './amis/EcranAmis';
 import type { ApparenceLivre } from './types';
+
+/**
+ * Lien d'invitation (…/?invitation=CODE) : on garde le code de côté, le temps
+ * de se connecter si besoin, et on le retire de l'adresse affichée.
+ */
+function retenirInvitation() {
+  const parametres = new URLSearchParams(window.location.search);
+  const code = parametres.get('invitation');
+  if (!code) return;
+  try {
+    localStorage.setItem(CLE_INVITATION, code);
+  } catch {
+    // stockage indisponible : l'invitation sera perdue
+  }
+  parametres.delete('invitation');
+  const reste = parametres.toString();
+  window.history.replaceState(null, '', window.location.pathname + (reste ? `?${reste}` : '') + window.location.hash);
+}
+retenirInvitation();
 
 /** Apparence du dernier livre ouvert, mémorisée sur l'appareil. */
 function lireDernierLivre(): ApparenceLivre & { miniature?: string | null } {

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ContexteDepot, useDepot, useEtatDepot } from '../donnees/contexte';
 import { Depot } from '../donnees/depot';
 import { LivreOuvert } from '../livre/LivreOuvert';
+import { FournisseurSocial } from '../amis/contexte';
+import { CLE_INVITATION, EcranAmis, type Onglet } from '../amis/EcranAmis';
 import { Etagere } from './Etagere';
 
 /** Clé de stockage de l'apparence du dernier livre ouvert (pour l'intro). */
@@ -11,7 +13,7 @@ const cleDernierId = (uid: string) => `grimoire:dernier-livre-id:${uid}`;
 
 /**
  * Charge les données du compte connecté, lance la synchronisation, puis
- * affiche l'étagère ou le livre ouvert.
+ * affiche l'étagère, un livre ouvert ou le cercle des amis.
  */
 export function Bibliotheque({ uid }: { uid: string }) {
   const [depot, setDepot] = useState<Depot | null>(null);
@@ -41,15 +43,24 @@ export function Bibliotheque({ uid }: { uid: string }) {
   if (!depot) return <PageAttente />;
   return (
     <ContexteDepot.Provider value={depot}>
-      <Navigation />
+      <FournisseurSocial uid={uid} actif={depot.enLigne}>
+        <Navigation />
+      </FournisseurSocial>
     </ContexteDepot.Provider>
   );
 }
 
+/** Écran principal affiché. */
+type Ecran =
+  | { type: 'etagere' }
+  /** depuisEtagere : le livre a été ouvert depuis l'étagère (le retour y ramène). */
+  | { type: 'livre'; id: string; recette?: string; depuisEtagere?: boolean }
+  | { type: 'amis'; onglet: Onglet };
+
 /**
- * Passe de l'étagère à un livre et inversement.
- * L'étagère est la « racine » de l'historique du navigateur : ouvrir un livre
- * ajoute une entrée, si bien que le retour d'Android ramène à l'étagère.
+ * Passe de l'étagère à un livre ou au cercle des amis, et inversement.
+ * L'étagère est la « racine » de l'historique du navigateur : chaque écran
+ * ouvert ajoute une entrée, si bien que le retour d'Android ramène en arrière.
  */
 function Navigation() {
   const depot = useDepot();
@@ -59,9 +70,9 @@ function Navigation() {
 
   // Au lancement, on rouvre le dernier livre consulté (s'il existe toujours) ;
   // au tout premier lancement, on arrive sur l'étagère.
-  const [livreOuvertId, setLivreOuvertId] = useState<string | null>(() => {
+  const [ecran, setEcran] = useState<Ecran>(() => {
     const id = localStorage.getItem(cleDernierId(depot.uid));
-    return id && livres.some((l) => l.id === id) ? id : null;
+    return id && livres.some((l) => l.id === id) ? { type: 'livre', id, depuisEtagere: true } : { type: 'etagere' };
   });
 
   const historiquePret = useRef(false);
@@ -69,24 +80,45 @@ function Navigation() {
     if (!historiquePret.current) {
       historiquePret.current = true;
       window.history.replaceState(null, '');
-      if (livreOuvertId) window.history.pushState({ livre: livreOuvertId }, '');
+      if (ecran.type === 'livre') window.history.pushState({ livre: ecran.id }, '');
+      // Lien d'invitation ouvert : direction le cercle des amis
+      if (depot.enLigne && localStorage.getItem(CLE_INVITATION)) ouvrirAmis('amis');
     }
     const surChangementHistorique = (evenement: PopStateEvent) => {
-      const id: unknown = evenement.state?.livre;
-      setLivreOuvertId(typeof id === 'string' && refLivres.current.some((l) => l.id === id) ? id : null);
+      const etat = evenement.state as { livre?: string; amis?: boolean; onglet?: Onglet } | null;
+      setEcran((actuel) => {
+        if (etat?.amis) return actuel.type === 'amis' ? actuel : { type: 'amis', onglet: etat.onglet ?? 'courrier' };
+        const id = etat?.livre;
+        if (id && refLivres.current.some((l) => l.id === id)) {
+          return actuel.type === 'livre' && actuel.id === id ? actuel : { type: 'livre', id };
+        }
+        return actuel.type === 'etagere' ? actuel : { type: 'etagere' };
+      });
     };
     window.addEventListener('popstate', surChangementHistorique);
     return () => window.removeEventListener('popstate', surChangementHistorique);
     // (mise en place une seule fois)
   }, []);
 
-  const ouvrirLivre = (id: string) => {
+  const ouvrirLivre = (id: string, recette?: string) => {
     window.history.pushState({ livre: id }, '');
     localStorage.setItem(cleDernierId(depot.uid), id);
-    setLivreOuvertId(id);
+    setEcran((actuel) => ({ type: 'livre', id, recette, depuisEtagere: actuel.type === 'etagere' }));
   };
 
-  const livre = livres.find((l) => l.id === livreOuvertId);
+  function ouvrirAmis(onglet: Onglet = 'courrier') {
+    window.history.pushState({ amis: true, onglet }, '');
+    setEcran({ type: 'amis', onglet });
+  }
+
+  /** Ouvre la recette de la bibliothèque qui a cette origine (depuis le fil d'activité). */
+  const ouvrirOrigine = (origineId: string) => {
+    const recette = recettes.find((r) => r.origineId === origineId);
+    if (recette) ouvrirLivre(recette.livreId, recette.id);
+    else window.alert('Cette recette n’est plus dans votre bibliothèque.');
+  };
+
+  const livre = ecran.type === 'livre' ? livres.find((l) => l.id === ecran.id) : undefined;
 
   // On retient l'apparence du livre ouvert pour la couverture de la prochaine intro
   useEffect(() => {
@@ -109,17 +141,46 @@ function Navigation() {
     return compte;
   }, [recettes]);
 
-  if (livre) {
+  if (ecran.type === 'amis') {
+    return (
+      <EcranAmis
+        ongletInitial={ecran.onglet}
+        surRetour={() => window.history.back()}
+        surOuvrirOrigine={ouvrirOrigine}
+        surOuvrirLivre={(id) => ouvrirLivre(id)}
+      />
+    );
+  }
+  if (livre && ecran.type === 'livre') {
     return (
       <LivreOuvert
         key={livre.id}
         livre={livre}
         recettes={recettes.filter((r) => r.livreId === livre.id)}
-        surEtagere={() => window.history.back()}
+        recetteInitiale={ecran.recette}
+        surEtagere={() => {
+          if (ecran.depuisEtagere) {
+            window.history.back(); // on revient sur nos pas
+          } else {
+            // Livre ouvert depuis une recherche ou le courrier : on va à l'étagère
+            window.history.pushState(null, '');
+            setEcran({ type: 'etagere' });
+          }
+        }}
+        surAmis={() => ouvrirAmis()}
+        surOuvrirAilleurs={ouvrirLivre}
       />
     );
   }
-  return <Etagere livres={livres} nombreRecettes={nombreRecettes} surOuvrir={ouvrirLivre} />;
+  return (
+    <Etagere
+      livres={livres}
+      nombreRecettes={nombreRecettes}
+      surOuvrir={(id) => ouvrirLivre(id)}
+      surOuvrirRecette={ouvrirLivre}
+      surAmis={() => ouvrirAmis()}
+    />
+  );
 }
 
 /** Petite version (240 px) d'une image, sous forme de texte, pour l'intro. */

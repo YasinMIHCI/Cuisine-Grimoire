@@ -15,7 +15,7 @@ export const livreParDefaut: ApparenceLivre = {
 
 export const livreFictif: Livre = { id: 'livre-1', ...livreParDefaut, ...communs };
 
-type RecetteExemple = Omit<Recette, 'proprietaireId' | 'creeLe' | 'modifieLe' | 'galerie'>;
+type RecetteExemple = Omit<Recette, 'proprietaireId' | 'creeLe' | 'modifieLe' | 'galerie' | 'origineId'>;
 
 const exemples: RecetteExemple[] = [
   {
@@ -221,4 +221,4 @@ const exemples: RecetteExemple[] = [
   },
 ];
 
-export const recettesFictives: Recette[] = exemples.map((r) => ({ ...r, ...communs, galerie: [] }));
+export const recettesFictives: Recette[] = exemples.map((r) => ({ ...r, ...communs, galerie: [], origineId: r.id }));

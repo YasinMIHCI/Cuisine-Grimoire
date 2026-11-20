@@ -68,6 +68,13 @@ export interface Recette extends Synchronisable {
   /** Identifiants d'images (voir donnees/images.ts). */
   photoPrincipale?: string | null;
   galerie: string[];
+  /**
+   * Recette d'origine : elle-même pour une recette créée, l'original pour une
+   * copie (reçue d'un ami ou dupliquée). Regroupe les « Réalisations ».
+   */
+  origineId: string;
+  /** Pseudo de l'ami qui l'a transmise, le cas échéant. */
+  transmisPar?: string | null;
 }
 
 export interface Livre extends Synchronisable {
@@ -77,6 +84,8 @@ export interface Livre extends Synchronisable {
   symbole: NomSymbole;
   /** Identifiant d'une image de couverture ; elle remplace alors le symbole. */
   imageCouverture?: string | null;
+  /** Pseudo de l'ami qui l'a transmis, le cas échéant. */
+  transmisPar?: string | null;
 }
 
 /** Ce qu'il faut d'un livre pour dessiner sa couverture. */
@@ -95,3 +104,27 @@ export const COULEURS_CUIR = [
 ] as const;
 
 export const SYMBOLES: NomSymbole[] = ['chaudron', 'feuille', 'etoile', 'coupe', 'epi', 'flamme', 'poisson', 'lune'];
+
+/** Recette telle qu'elle voyage dans une transmission (copie figée). */
+export type RecettePartagee = Pick<
+  Recette,
+  | 'titre'
+  | 'categorie'
+  | 'tempsPreparation'
+  | 'tempsCuisson'
+  | 'portions'
+  | 'ingredients'
+  | 'etapes'
+  | 'notes'
+  | 'symbole'
+  | 'photoPrincipale'
+  | 'galerie'
+  | 'origineId'
+>;
+
+/** Contenu d'une transmission : un livre entier ou une recette seule. */
+export interface ContenuEnvoi {
+  version: 1;
+  livre?: Pick<Livre, 'titre' | 'couleurCuir' | 'symbole' | 'imageCouverture'>;
+  recettes: RecettePartagee[];
+}

@@ -7,7 +7,7 @@
 //    dès que le réseau est là ;
 //  - en cas de conflit entre deux appareils, la modification la plus récente
 //    l'emporte (champ modifieLe).
-import type { Livre, Recette, Synchronisable } from '../types';
+import type { ContenuEnvoi, Livre, Recette, Synchronisable } from '../types';
 import { ecrire, effacer, lire, lireTout, ouvrirBase, type ImageLocale, type Magasin } from './baseLocale';
 import { livreFictif, recettesFictives } from './donneesFictives';
 import { compresserImage } from './images';
@@ -34,6 +34,7 @@ const livreVersLigne = (l: Livre) => ({
   couleur_cuir: l.couleurCuir,
   symbole: l.symbole,
   image_couverture: l.imageCouverture ?? null,
+  transmis_par: l.transmisPar ?? null,
   cree_le: l.creeLe,
   modifie_le: l.modifieLe,
   supprime_le: l.supprimeLe ?? null,
@@ -46,6 +47,7 @@ const ligneVersLivre = (x: any): Livre => ({
   couleurCuir: x.couleur_cuir,
   symbole: x.symbole,
   imageCouverture: x.image_couverture ?? null,
+  transmisPar: x.transmis_par ?? null,
   creeLe: x.cree_le,
   modifieLe: x.modifie_le,
   supprimeLe: x.supprime_le,
@@ -67,6 +69,8 @@ const recetteVersLigne = (r: Recette) => ({
   symbole: r.symbole,
   photo_principale: r.photoPrincipale ?? null,
   galerie: r.galerie,
+  origine_id: r.origineId,
+  transmis_par: r.transmisPar ?? null,
   cree_le: r.creeLe,
   modifie_le: r.modifieLe,
   supprime_le: r.supprimeLe ?? null,
@@ -88,6 +92,8 @@ const ligneVersRecette = (x: any): Recette => ({
   symbole: x.symbole,
   photoPrincipale: x.photo_principale,
   galerie: x.galerie ?? [],
+  origineId: x.origine_id ?? x.id,
+  transmisPar: x.transmis_par ?? null,
   creeLe: x.cree_le,
   modifieLe: x.modifie_le,
   supprimeLe: x.supprime_le,
@@ -122,7 +128,10 @@ export class Depot {
   static async ouvrir(uid: string): Promise<Depot> {
     const depot = new Depot(uid, await ouvrirBase(uid));
     for (const l of await lireTout<Livre>(depot.base, 'livres')) depot.livres.set(l.id, l);
-    for (const r of await lireTout<Recette>(depot.base, 'recettes')) depot.recettes.set(r.id, r);
+    for (const r of await lireTout<Recette>(depot.base, 'recettes')) {
+      // Recettes enregistrées par une version précédente de l'appli
+      depot.recettes.set(r.id, { ...r, galerie: r.galerie ?? [], origineId: r.origineId ?? r.id });
+    }
 
     // Mode local, premier lancement : on dépose le livre d'exemple
     if (!depot.enLigne && depot.livres.size === 0) {
@@ -232,12 +241,17 @@ export class Depot {
   }
 
   /** Crée ou modifie une recette. */
-  async enregistrerRecette(recette: Omit<Recette, keyof Synchronisable> & Partial<Synchronisable>) {
+  async enregistrerRecette(
+    recette: Omit<Recette, keyof Synchronisable | 'origineId'> & Partial<Synchronisable> & { origineId?: string },
+  ) {
     const date = maintenant();
     const ancienne = recette.id ? this.recettes.get(recette.id) : undefined;
+    const id = recette.id ?? crypto.randomUUID();
     const complete: Recette = {
       ...recette,
-      id: recette.id ?? crypto.randomUUID(),
+      id,
+      // Une nouvelle recette est sa propre origine ; une copie garde celle de l'original
+      origineId: recette.origineId ?? id,
       proprietaireId: this.uid,
       creeLe: recette.creeLe ?? date,
       modifieLe: date,
@@ -252,6 +266,12 @@ export class Depot {
     this.publier();
     this.planifierSynchro();
     return complete;
+  }
+
+  /** Ajoute ou retire une recette des favoris (marque-page doré). */
+  async basculerFavori(id: string) {
+    const recette = this.recettes.get(id);
+    if (recette) await this.enregistrerRecette({ ...recette, favori: !recette.favori });
   }
 
   /** Supprime une recette (et ses images). */
@@ -280,6 +300,73 @@ export class Depot {
     await ecrire(this.base, 'images', image);
     this.adressesImages.set(id, Promise.resolve(URL.createObjectURL(blob)));
     return id;
+  }
+
+  /** Range une image déjà prête (sans la recompresser) et renvoie son identifiant. */
+  async stockerImage(blob: Blob, extension: string): Promise<string> {
+    const id = `${crypto.randomUUID()}.${extension}`;
+    await ecrire(this.base, 'images', { id, blob, aEnvoyer: true } satisfies ImageLocale);
+    return id;
+  }
+
+  /** Contenu d'une image (téléchargée si elle n'est pas encore sur l'appareil). */
+  async lireImage(id: string): Promise<Blob | null> {
+    let image = await lire<ImageLocale>(this.base, 'images', id);
+    if (!image?.blob) {
+      await this.chargerImage(id).catch(() => null);
+      image = await lire<ImageLocale>(this.base, 'images', id);
+    }
+    return image?.blob ?? null;
+  }
+
+  /**
+   * Range dans la bibliothèque le contenu d'une transmission acceptée : un
+   * nouveau livre (ou un livre existant) et ses recettes, avec leurs photos.
+   * @param images contenu des photos de l'envoi, par identifiant d'origine
+   */
+  async importer(
+    contenu: ContenuEnvoi,
+    images: Map<string, Blob>,
+    cible: { livreId: string } | { nouveauLivre: string },
+    transmisPar: string,
+  ) {
+    // Chaque photo reçoit un nouvel identifiant dans la bibliothèque du destinataire
+    const correspondance = new Map<string, string>();
+    for (const [ancien, blob] of images) {
+      correspondance.set(ancien, await this.stockerImage(blob, ancien.split('.').pop() || 'jpg'));
+    }
+    const image = (id: string | null | undefined) => (id ? (correspondance.get(id) ?? null) : null);
+
+    let livreId: string;
+    if ('livreId' in cible) {
+      livreId = cible.livreId;
+    } else {
+      const modele = contenu.livre;
+      const livre = await this.enregistrerLivre({
+        titre: cible.nouveauLivre,
+        couleurCuir: modele?.couleurCuir ?? '#5a2415',
+        symbole: modele?.symbole ?? 'chaudron',
+        imageCouverture: image(modele?.imageCouverture),
+        transmisPar,
+      });
+      livreId = livre.id;
+    }
+
+    for (const r of contenu.recettes) {
+      await this.enregistrerRecette({
+        ...r,
+        livreId,
+        favori: false,
+        transmisPar,
+        photoPrincipale: image(r.photoPrincipale),
+        galerie: r.galerie.map(image).filter((id): id is string => id !== null),
+        etapes: r.etapes.map((e) => {
+          const illustration = image(e.image);
+          return { texte: e.texte, ...(illustration ? { image: illustration } : {}) };
+        }),
+      });
+    }
+    return livreId;
   }
 
   /** Duplique une image (null si elle est introuvable, par exemple hors ligne). */
@@ -454,14 +541,16 @@ export class Depot {
   private async envoyer<T extends Synchronisable>(magasin: 'livres' | 'recettes', carte: Map<string, T>, versLigne: (x: T) => object) {
     const enAttente = [...carte.values()].filter((x) => x.aSynchroniser);
     if (enAttente.length === 0) return;
-    const lignes = enAttente.map(versLigne) as Record<string, unknown>[];
+    let lignes = enAttente.map(versLigne) as Record<string, unknown>[];
     let { error } = await supabase!.from(magasin).upsert(lignes);
-    // Base pas encore mise à jour (supabase/02_etagere.sql non exécuté) : on envoie
-    // quand même le reste, sans l'image de couverture.
-    if (error && /image_couverture/.test(error.message)) {
-      ({ error } = await supabase!
-        .from(magasin)
-        .upsert(lignes.map(({ image_couverture: _ignoree, ...reste }) => reste)));
+    // Base pas encore mise à jour (un script de supabase/ non exécuté) : on envoie
+    // quand même le reste, sans les colonnes inconnues de la base.
+    for (let essai = 0; error && essai < 4; essai++) {
+      const colonne = /could not find the '(\w+)' column/i.exec(error.message)?.[1];
+      if (!colonne) break;
+      console.warn(`Colonne « ${colonne} » absente de la base : exécutez les scripts de supabase/`);
+      lignes = lignes.map(({ [colonne]: _ignoree, ...reste }) => reste);
+      ({ error } = await supabase!.from(magasin).upsert(lignes));
     }
     if (error) throw error;
     for (const element of enAttente) {
@@ -474,7 +563,7 @@ export class Depot {
 }
 
 /** Tous les identifiants d'images utilisés par une recette. */
-function imagesDe(recette: Recette): string[] {
+export function imagesDe(recette: Recette): string[] {
   return [
     ...(recette.photoPrincipale ? [recette.photoPrincipale] : []),
     ...recette.galerie,
