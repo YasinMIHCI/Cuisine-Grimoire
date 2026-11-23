@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { EcranConnexion } from './auth/EcranConnexion';
 import { EcranNouveauMotDePasse } from './auth/EcranNouveauMotDePasse';
 import { FournisseurSession, useMotDePasseChange, useSession } from './auth/session';
 import { introAJouer } from './intro/reglage';
 import { livreParDefaut } from './donnees/donneesFictives';
-import { Intro } from './intro/Intro';
 import { Bibliotheque, CLE_DERNIER_LIVRE, PageAttente } from './bibliotheque/Bibliotheque';
-import { CLE_INVITATION } from './amis/EcranAmis';
+import { CLE_INVITATION } from './amis/cles';
 import type { ApparenceLivre } from './types';
 import { Dialogues } from './composants/Dialogues';
+
+// L'intro (et son moteur d'animation) n'est chargée que si elle est jouée
+const Intro = lazy(() => import('./intro/Intro').then((m) => ({ default: m.Intro })));
 
 /**
  * Lien d'invitation (…/?invitation=CODE) : on garde le code de côté, le temps
@@ -65,7 +67,11 @@ function Contenu() {
       {session.statut === 'connecte' && session.motDePasseAChanger && <EcranNouveauMotDePasse surTermine={motDePasseChange} />}
       {session.statut === 'connecte' && !session.motDePasseAChanger && <Bibliotheque key={session.uid} uid={session.uid} />}
       <Dialogues />
-      {introEnCours && <Intro livre={livreIntro} miniature={livreIntro.miniature} surFin={() => setIntroEnCours(false)} />}
+      {introEnCours && (
+        <Suspense fallback={<div className="intro" aria-hidden="true" />}>
+          <Intro livre={livreIntro} miniature={livreIntro.miniature} surFin={() => setIntroEnCours(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

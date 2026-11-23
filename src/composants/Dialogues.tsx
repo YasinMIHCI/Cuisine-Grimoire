@@ -87,7 +87,10 @@ function Dialogue({ demande }: { demande: Demande }) {
   // « retour » d'Android le referme. La réponse n'est rendue qu'une fois cette
   // entrée retirée, pour que l'appelant puisse naviguer sans conflit.
   useEffect(() => {
-    window.history.pushState({ ...window.history.state, dialogue: marque.current }, '');
+    // (en développement, React lance l'effet deux fois : une seule entrée suffit)
+    if (window.history.state?.dialogue !== marque.current) {
+      window.history.pushState({ ...window.history.state, dialogue: marque.current }, '');
+    }
     const surRetour = () => {
       if (window.history.state?.dialogue !== marque.current) terminer();
     };
@@ -101,7 +104,7 @@ function Dialogue({ demande }: { demande: Demande }) {
     else terminer();
   };
 
-  const ref = usePiegeFocus<HTMLFormElement>(() => fermer(demande.type === 'information' ? true : null));
+  const ref = usePiegeFocus<HTMLDivElement>(() => fermer(demande.type === 'information' ? true : null));
 
   const valider = (e: FormEvent) => {
     e.preventDefault();
@@ -110,15 +113,15 @@ function Dialogue({ demande }: { demande: Demande }) {
 
   return (
     <div className="voile voile--dialogue" onClick={() => fermer(demande.type === 'information' ? true : null)}>
-      <form
+      <div
         ref={ref}
-        className="panneau parchemin formulaire dialogue"
+        className="panneau parchemin dialogue"
         role={demande.type === 'information' ? 'alertdialog' : 'dialog'}
         aria-modal="true"
         aria-labelledby="dialogue-message"
         onClick={(e) => e.stopPropagation()}
-        onSubmit={valider}
       >
+      <form className="formulaire" onSubmit={valider}>
         {demande.titre && <h2 className="recette__section">{demande.titre}</h2>}
         <p id="dialogue-message" className="dialogue__message">
           {demande.message}
@@ -147,6 +150,7 @@ function Dialogue({ demande }: { demande: Demande }) {
           )}
         </div>
       </form>
+      </div>
     </div>
   );
 }

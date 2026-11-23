@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1d120b" />
-    <meta name="description" content="Vos recettes de cuisine dans un vieux grimoire magique." />
+    <meta name="description" content="Vos recettes de cuisine dans un vieux grimoire magique : hors ligne, sur téléphone et ordinateur, à partager avec vos proches." />
+    <!-- Aperçu des liens partagés (messageries, réseaux sociaux) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="Grimoire de recettes" />
+    <meta property="og:title" content="Grimoire de recettes" />
+    <meta property="og:description" content="Vos recettes de cuisine dans un vieux grimoire magique. Rejoignez mon cercle pour échanger nos recettes !" />
+    <meta property="og:url" content="__ADRESSE_SITE__" />
+    <meta property="og:image" content="__ADRESSE_SITE__icones/apercu.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Un grimoire de cuir orné d'un chaudron doré" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%icones/icone.svg" />
     <link rel="apple-touch-icon" href="%BASE_URL%icones/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,6 +25,11 @@
   </head>
   <body>
     <div id="racine"></div>
+    <noscript>
+      <p style="margin: 2em; color: #ead9b0; font-family: Georgia, serif; text-align: center">
+        Le Grimoire de recettes a besoin de JavaScript pour s’ouvrir. Activez-le dans les réglages de votre navigateur.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

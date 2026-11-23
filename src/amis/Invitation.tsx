@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { partagerTexte } from '../utilitaires/texte';
 import { useSocial } from './contexte';
 import { confirmer } from '../composants/Dialogues';
@@ -21,7 +20,13 @@ export function Invitation() {
 
   useEffect(() => {
     if (!lien) return;
-    void QRCode.toString(lien, { type: 'svg', margin: 1, color: { dark: '#2e1d10', light: '#00000000' } }).then(setSvg);
+    let annule = false;
+    void import('qrcode')
+      .then((QRCode) => QRCode.toString(lien, { type: 'svg', margin: 1, color: { dark: '#2e1d10', light: '#00000000' } }))
+      .then((s) => !annule && setSvg(s));
+    return () => {
+      annule = true;
+    };
   }, [lien]);
 
   if (!profil) return null;

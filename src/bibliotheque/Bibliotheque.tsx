@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ContexteDepot, useDepot, useEtatDepot } from '../donnees/contexte';
 import { Depot } from '../donnees/depot';
 import { LivreOuvert } from '../livre/LivreOuvert';
 import { FournisseurSocial } from '../amis/contexte';
-import { CLE_INVITATION, EcranAmis, type Onglet } from '../amis/EcranAmis';
+import { CLE_INVITATION, type Onglet } from '../amis/cles';
 import { Etagere } from './Etagere';
 import { BandeauMinuteurs } from '../cuisine/BandeauMinuteurs';
 import { informer } from '../composants/Dialogues';
+
+// Le cercle des amis (et le générateur de QR code) n'est chargé qu'à l'ouverture
+const EcranAmis = lazy(() => import('../amis/EcranAmis').then((m) => ({ default: m.EcranAmis })));
 
 /** Clé de stockage de l'apparence du dernier livre ouvert (pour l'intro). */
 export const CLE_DERNIER_LIVRE = 'grimoire:dernier-livre';
@@ -196,12 +199,14 @@ function Navigation() {
 
   if (ecran.type === 'amis') {
     return (
-      <EcranAmis
-        ongletInitial={ecran.onglet}
-        surRetour={() => window.history.back()}
-        surOuvrirOrigine={ouvrirOrigine}
-        surOuvrirLivre={(id) => ouvrirLivre(id)}
-      />
+      <Suspense fallback={<PageAttente />}>
+        <EcranAmis
+          ongletInitial={ecran.onglet}
+          surRetour={() => window.history.back()}
+          surOuvrirOrigine={ouvrirOrigine}
+          surOuvrirLivre={(id) => ouvrirLivre(id)}
+        />
+      </Suspense>
     );
   }
   if (livre && ecran.type === 'livre') {

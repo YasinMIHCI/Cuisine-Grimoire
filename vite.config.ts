@@ -5,12 +5,33 @@ import { VitePWA } from 'vite-plugin-pwa';
 // Chemin de base de l'appli : « / » en local, « /<dépôt>/ » sur GitHub Pages
 // (fourni par le workflow de déploiement via la variable CHEMIN_BASE).
 const cheminBase = process.env.CHEMIN_BASE ?? '/';
+// Adresse publique complète (aperçu des liens partagés : il faut une adresse absolue)
+const adresseSite = process.env.ADRESSE_SITE ?? `https://yasinmihci.github.io${cheminBase}`;
 
 // Configuration Vite : React + PWA (manifest, service worker, hors ligne)
 export default defineConfig({
   base: cheminBase,
+  build: {
+    rolldownOptions: {
+      output: {
+        // Bibliothèques dans des fichiers à part : une mise à jour de l'appli ne
+        // les fait pas retélécharger (elles changent rarement).
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/ },
+            { name: 'gsap', test: /node_modules[\\/]gsap[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
+    {
+      name: 'adresse-site',
+      transformIndexHtml: (html) => html.replaceAll('__ADRESSE_SITE__', adresseSite),
+    },
     VitePWA({
       // Le service worker se met à jour tout seul quand une nouvelle version est déployée
       registerType: 'autoUpdate',

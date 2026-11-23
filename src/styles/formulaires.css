@@ -27,7 +27,9 @@
 }
 
 .bouton--principal {
-  font-family: var(--police-titre);
+  font-family: var(--police-titre-lisible);
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--parchemin-clair);
   border-color: #5a170e;
   background: linear-gradient(#a33423, #7c2216);
@@ -128,7 +130,8 @@
   margin-top: 12px;
 }
 
-.champ > span {
+.champ > span,
+.champ > label > span {
   display: block;
   font-size: 0.9rem;
   font-style: italic;

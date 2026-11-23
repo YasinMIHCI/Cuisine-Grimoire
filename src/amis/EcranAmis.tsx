@@ -27,10 +27,7 @@ import {
 } from './social';
 import './amis.css';
 
-export type Onglet = 'courrier' | 'amis' | 'profil';
-
-/** Clé de stockage d'un code d'invitation reçu par lien, en attente de traitement. */
-export const CLE_INVITATION = 'grimoire:invitation';
+import { CLE_INVITATION, type Onglet } from './cles';
 
 interface Props {
   ongletInitial: Onglet;

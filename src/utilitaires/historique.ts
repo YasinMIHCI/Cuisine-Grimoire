@@ -11,10 +11,16 @@ export function usePanneauHistorique(surFermer: () => void): () => void {
   const refSurFermer = useRef(surFermer);
   refSurFermer.current = surFermer;
 
+  const refMarque = useRef<string>(null);
+  refMarque.current ??= crypto.randomUUID();
+
   useEffect(() => {
-    const marque = crypto.randomUUID();
-    // On garde l'état courant (livre, vue…) et on y ajoute la marque du panneau
-    window.history.pushState({ ...window.history.state, panneau: marque }, '');
+    const marque = refMarque.current!;
+    // On garde l'état courant (livre, vue…) et on y ajoute la marque du panneau.
+    // (En développement, React lance l'effet deux fois : une seule entrée suffit.)
+    if (window.history.state?.panneau !== marque) {
+      window.history.pushState({ ...window.history.state, panneau: marque }, '');
+    }
     const surRetour = () => {
       // Notre entrée n'est plus la courante : on a reculé, le panneau se ferme
       if (window.history.state?.panneau !== marque) refSurFermer.current();

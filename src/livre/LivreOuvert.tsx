@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Livre, Recette } from '../types';
 import { repartirEnPages } from '../utilitaires/pagination';
 import { PanneauCompte } from '../composants/PanneauCompte';
 import { Sommaire, type FiltreSommaire } from '../composants/Sommaire';
 import { Visionneuse } from '../composants/Visionneuse';
 import { useDepot } from '../donnees/contexte';
-import { FormulaireRecette } from '../recette/FormulaireRecette';
-import { ModeCuisine } from '../cuisine/ModeCuisine';
 import { useSocial } from '../amis/contexte';
-import { PanneauTransmettre } from '../amis/PanneauTransmettre';
 import { PanneauRealisation, useRealisations } from '../amis/realisations';
 import type { SourceEnvoi } from '../amis/social';
 import { construireBlocsRecette } from './blocsRecette';
 import { PageRecette } from './PageRecette';
 import { TourneurDePages, type Transition } from './TourneurDePages';
+
+// Écrans chargés à la demande (allège le premier chargement)
+const FormulaireRecette = lazy(() => import('../recette/FormulaireRecette').then((m) => ({ default: m.FormulaireRecette })));
+const ModeCuisine = lazy(() => import('../cuisine/ModeCuisine').then((m) => ({ default: m.ModeCuisine })));
+const PanneauTransmettre = lazy(() => import('../amis/PanneauTransmettre').then((m) => ({ default: m.PanneauTransmettre })));
 
 // --- Réglages des animations ------------------------------------------------
 /** Ouverture d'un chapitre : une douzaine de pages défilent à toute vitesse (~1 s). */
@@ -305,6 +307,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
     );
   } else if (vue.type === 'edition') {
     page = (
+      <Suspense fallback={<p className="page__attente">…</p>}>
       <FormulaireRecette
         recette={recettes.find((r) => r.id === vue.id) ?? null}
         livreId={livre.id}
@@ -312,6 +315,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
         // Recette supprimée ou déplacée : on saute par-dessus sa page pour revenir au sommaire
         surPartie={() => window.history.go(-2)}
       />
+      </Suspense>
     );
   } else {
     page = (
@@ -359,6 +363,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
         </div>
       )}
 
+      <Suspense fallback={null}>
       {superpose?.type === 'image' && <Visionneuse id={superpose.id} surFermer={fermerSuperpose} />}
       {superpose?.type === 'photo' && <Visionneuse adresse={superpose.adresse} surFermer={fermerSuperpose} />}
       {superpose?.type === 'cuisine' && recette && (
@@ -379,6 +384,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
         <PanneauRealisation recette={recette} surFermer={fermerSuperpose} surPubliee={realisations.recharger} />
       )}
       {superpose?.type === 'compte' && <PanneauCompte surFermer={fermerSuperpose} />}
+      </Suspense>
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import gsap from 'gsap';
 import type { ApparenceLivre } from '../types';
 import { Couverture } from '../composants/Couverture';
@@ -272,16 +272,25 @@ export function Intro({ livre, miniature, surFin }: Props) {
     };
   }, [poussieres, etincelles]);
 
-  /** Un tap pendant l'intro saute directement au flash final. */
+  /** Un tap (ou une touche du clavier) pendant l'intro saute directement au flash final. */
   const passer = () => {
     const chrono = refChronologie.current;
     if (chrono && chrono.labels.flash !== undefined && chrono.time() < chrono.labels.flash) {
       chrono.play('flash');
     }
   };
+  const refPasser = useRef(passer);
+  refPasser.current = passer;
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') refPasser.current();
+    };
+    window.addEventListener('keydown', surTouche);
+    return () => window.removeEventListener('keydown', surTouche);
+  }, []);
 
   return (
-    <div className="intro" ref={refScene} onPointerDown={passer} role="presentation">
+    <div className="intro" ref={refScene} onPointerDown={passer} role="presentation" aria-hidden="true">
       {/* La « caméra » : tout ce qu'elle contient tremble et zoome ensemble */}
       <div className="intro__camera">
         <div className="intro__sol" />

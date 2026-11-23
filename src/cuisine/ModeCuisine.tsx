@@ -130,7 +130,7 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
         <span style={{ width: `${(page / derniere) * 100}%` }} />
       </div>
 
-      <main className="cuisine__contenu">
+      <div className="cuisine__contenu">
         {page === 0 && (
           <>
             <h2 className="cuisine__rubrique">
@@ -187,7 +187,7 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
             </button>
           </div>
         )}
-      </main>
+      </div>
 
       <footer className="cuisine__pied">
         <button type="button" className="bouton" onClick={() => aller(-1)} disabled={page === 0}>

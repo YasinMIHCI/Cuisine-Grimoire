@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 // Polices embarquées (licence libre OFL) : disponibles hors ligne
-import '@fontsource/uncial-antiqua/400.css';
+import '@fontsource/uncial-antiqua/latin-400.css';
 import '@fontsource/im-fell-english/400.css';
 import '@fontsource/im-fell-english/400-italic.css';
 import './styles/global.css';
