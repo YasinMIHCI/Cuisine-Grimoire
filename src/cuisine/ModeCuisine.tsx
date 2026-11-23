@@ -4,6 +4,7 @@ import { formaterQuantite } from '../utilitaires/format';
 import { usePanneauHistorique } from '../utilitaires/historique';
 import { ajusterQuantite, partagerTexte } from '../utilitaires/texte';
 import { ImageCollee } from '../composants/ImageCollee';
+import { demanderTexte, informer } from '../composants/Dialogues';
 import { formaterCompte, sonner, trouverDurees } from './minuteurs';
 import './cuisine.css';
 
@@ -87,8 +88,11 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
     setMinuteurs((liste) => [...liste, { id: crypto.randomUUID(), libelle, fin: Date.now() + secondes * 1000, sonne: false }]);
   };
 
-  const minuteurLibre = () => {
-    const reponse = window.prompt('Durée du minuteur, en minutes :', '10');
+  const minuteurLibre = async () => {
+    // Le son est débloqué tout de suite : après le dialogue, ce ne serait plus un geste direct
+    refAudio.current ??= new AudioContext();
+    void refAudio.current.resume();
+    const reponse = await demanderTexte('Durée du minuteur, en minutes :', { valeur: '10', numerique: true, oui: 'Lancer' });
     const minutes = reponse ? parseFloat(reponse.replace(',', '.')) : NaN;
     if (minutes > 0) lancerMinuteur(`${formaterQuantite(minutes)} min`, minutes * 60);
   };
@@ -110,7 +114,7 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
     const restants = recette.ingredients.filter((_, i) => !coches.has(i));
     const texte = [`Courses pour « ${recette.titre} » (${portions} portions) :`, ...restants.map((i) => `- ${ligneIngredient(i, facteur)}`)].join('\n');
     const resultat = await partagerTexte(`Courses : ${recette.titre}`, texte);
-    if (resultat === 'copie') window.alert('Liste copiée.');
+    if (resultat === 'copie') await informer('Liste copiée.');
   };
 
   const etape = page >= 1 && page < derniere ? recette.etapes[page - 1] : null;

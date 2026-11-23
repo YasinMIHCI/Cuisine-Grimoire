@@ -3,6 +3,7 @@ import type { Recette } from '../types';
 import { usePanneauHistorique } from '../utilitaires/historique';
 import { ilYa } from '../utilitaires/texte';
 import { useSocial } from './contexte';
+import { confirmer, informer } from '../composants/Dialogues';
 import { BaseNonAJour, chargerRealisations, publierRealisation, supprimerRealisation, type Realisation } from './social';
 
 export interface EtatRealisations {
@@ -58,11 +59,11 @@ export function CarteRealisation({
   surSupprimee: () => void;
 }) {
   const supprimer = async () => {
-    if (!window.confirm('Supprimer cette photo et son commentaire ?')) return;
+    if (!(await confirmer('Supprimer cette photo et son commentaire ?', { oui: 'Supprimer', danger: true }))) return;
     try {
       await supprimerRealisation(realisation);
     } catch (e) {
-      window.alert((e as Error).message);
+      await informer((e as Error).message);
     }
     surSupprimee();
   };

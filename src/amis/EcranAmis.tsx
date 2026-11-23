@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { PanneauCompte } from '../composants/PanneauCompte';
 import { Ornement } from '../composants/Ornement';
+import { confirmer } from '../composants/Dialogues';
 import { ilYa } from '../utilitaires/texte';
 import { Avatar } from './Avatar';
 import { useSocial } from './contexte';
@@ -173,7 +174,9 @@ function OngletCourrier({ surOuvrirOrigine, surOuvrirLivre }: Pick<Props, 'surOu
                 <button
                   type="button"
                   className="bouton bouton--petit"
-                  onClick={() => window.confirm(`Refuser « ${t.titre} » ?`) && void agir(() => refuserTransmission(t.id))}
+                  onClick={async () => {
+                    if (await confirmer(`Refuser « ${t.titre} » ?`, { oui: 'Refuser' })) void agir(() => refuserTransmission(t.id));
+                  }}
                 >
                   Refuser
                 </button>
@@ -233,7 +236,9 @@ function OngletCourrier({ surOuvrirOrigine, surOuvrirLivre }: Pick<Props, 'surOu
           surRangee={(livreId) => {
             void charger();
             // On laisse le panneau se fermer, puis on ouvre le livre où la copie est rangée
-            setTimeout(() => window.confirm('Copie rangée ! Ouvrir le livre maintenant ?') && surOuvrirLivre(livreId), 350);
+            setTimeout(async () => {
+              if (await confirmer('Copie rangée ! Ouvrir le livre maintenant ?', { oui: 'Ouvrir le livre', non: 'Plus tard' })) surOuvrirLivre(livreId);
+            }, 350);
           }}
         />
       )}
@@ -441,9 +446,9 @@ function OngletAmis() {
               <button
                 type="button"
                 className="bouton bouton--petit"
-                onClick={() =>
-                  window.confirm(`Retirer ${ami.pseudo} de votre cercle ?`) && void agir(() => retirerAmi(ami.id))
-                }
+                onClick={async () => {
+                  if (await confirmer(`Retirer ${ami.pseudo} de votre cercle ?`, { oui: 'Retirer', danger: true })) void agir(() => retirerAmi(ami.id));
+                }}
               >
                 Retirer
               </button>

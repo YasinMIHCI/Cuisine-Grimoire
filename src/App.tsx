@@ -6,6 +6,7 @@ import { Intro } from './intro/Intro';
 import { Bibliotheque, CLE_DERNIER_LIVRE, PageAttente } from './bibliotheque/Bibliotheque';
 import { CLE_INVITATION } from './amis/EcranAmis';
 import type { ApparenceLivre } from './types';
+import { Dialogues } from './composants/Dialogues';
 
 /**
  * Lien d'invitation (…/?invitation=CODE) : on garde le code de côté, le temps
@@ -58,6 +59,7 @@ function Contenu() {
       {session.statut === 'deconnecte' && <EcranConnexion />}
       {/* `key` : en changeant de compte, on repart de données vierges */}
       {session.statut === 'connecte' && <Bibliotheque key={session.uid} uid={session.uid} />}
+      <Dialogues />
       {introEnCours && <Intro livre={livreIntro} miniature={livreIntro.miniature} surFin={() => setIntroEnCours(false)} />}
     </div>
   );

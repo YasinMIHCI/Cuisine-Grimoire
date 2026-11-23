@@ -8,10 +8,10 @@ export interface Duree {
 
 /**
  * Trouve les durées écrites dans une étape : « 30 minutes », « 3 heures »,
- * « 1 h 30 », « 10 min », « 45 secondes ». (« 6 à 7 minutes » → 7 minutes.)
+ * « 1 h 30 », « 10 min », « 5 mn », « 45 secondes ». (« 6 à 7 minutes » → 7 minutes.)
  */
 export function trouverDurees(texte: string): Duree[] {
-  const motif = /(\d+(?:[.,]\d+)?)\s*(heures?|h|minutes?|mins?|secondes?)(?![a-zà-ÿ])(?:\s*(\d{2})(?!\s*[°\d]))?/gi;
+  const motif = /(\d+(?:[.,]\d+)?)\s*(heures?|h|minutes?|mins?|mn|secondes?|secs?)(?![a-zà-ÿ])(?:\s*(\d{2})(?!\s*[°\d]))?/gi;
   const durees: Duree[] = [];
   for (const m of texte.matchAll(motif)) {
     const n = parseFloat(m[1].replace(',', '.'));

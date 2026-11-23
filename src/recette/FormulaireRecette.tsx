@@ -4,6 +4,7 @@ import { ChoixPhoto } from '../composants/ChoixPhoto';
 import { ImageCollee } from '../composants/ImageCollee';
 import { Ornement } from '../composants/Ornement';
 import { useDepot, useEtatDepot } from '../donnees/contexte';
+import { confirmer } from '../composants/Dialogues';
 
 interface Props {
   /** Recette à modifier, ou null pour en créer une nouvelle. */
@@ -101,7 +102,7 @@ export function FormulaireRecette({ recette, livreId, surTermine, surPartie }: P
   };
 
   const supprimer = async () => {
-    if (!recette || !window.confirm(`Supprimer définitivement « ${recette.titre} » ?`)) return;
+    if (!recette || !(await confirmer(`Supprimer définitivement « ${recette.titre} » ?`, { oui: 'Supprimer', danger: true }))) return;
     await depot.supprimerRecette(recette.id);
     surPartie();
   };

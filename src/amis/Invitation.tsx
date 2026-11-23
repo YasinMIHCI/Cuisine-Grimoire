@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { partagerTexte } from '../utilitaires/texte';
 import { useSocial } from './contexte';
+import { confirmer } from '../composants/Dialogues';
 import { changerCodeInvitation } from './social';
 
 /** Adresse du lien d'invitation d'un code. */
@@ -32,7 +33,7 @@ export function Invitation() {
   };
 
   const renouveler = async () => {
-    if (!window.confirm('Créer un nouveau lien ? L’ancien lien et son QR code ne fonctionneront plus.')) return;
+    if (!(await confirmer('Créer un nouveau lien ? L’ancien lien et son QR code ne fonctionneront plus.', { oui: 'Nouveau lien' }))) return;
     try {
       const code = await changerCodeInvitation();
       setProfil({ ...profil, codeInvitation: code });

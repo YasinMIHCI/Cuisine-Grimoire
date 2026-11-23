@@ -14,7 +14,7 @@ export function usePanneauHistorique(surFermer: () => void): () => void {
   useEffect(() => {
     const marque = crypto.randomUUID();
     // On garde l'état courant (livre, vue…) et on y ajoute la marque du panneau
-    window.history.pushState({ ...(window.history.state ?? {}), panneau: marque }, '');
+    window.history.pushState({ ...window.history.state, panneau: marque }, '');
     const surRetour = () => {
       // Notre entrée n'est plus la courante : on a reculé, le panneau se ferme
       if (window.history.state?.panneau !== marque) refSurFermer.current();

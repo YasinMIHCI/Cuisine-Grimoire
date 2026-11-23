@@ -5,6 +5,7 @@ import { LivreOuvert } from '../livre/LivreOuvert';
 import { FournisseurSocial } from '../amis/contexte';
 import { CLE_INVITATION, EcranAmis, type Onglet } from '../amis/EcranAmis';
 import { Etagere } from './Etagere';
+import { informer } from '../composants/Dialogues';
 
 /** Clé de stockage de l'apparence du dernier livre ouvert (pour l'intro). */
 export const CLE_DERNIER_LIVRE = 'grimoire:dernier-livre';
@@ -115,7 +116,7 @@ function Navigation() {
   const ouvrirOrigine = (origineId: string) => {
     const recette = recettes.find((r) => r.origineId === origineId);
     if (recette) ouvrirLivre(recette.livreId, recette.id);
-    else window.alert('Cette recette n’est plus dans votre bibliothèque.');
+    else void informer('Cette recette n’est plus dans votre bibliothèque.');
   };
 
   const livre = ecran.type === 'livre' ? livres.find((l) => l.id === ecran.id) : undefined;

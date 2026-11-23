@@ -4,6 +4,7 @@ import { ChoixPhoto } from '../composants/ChoixPhoto';
 import { CouvertureLivre } from '../composants/Couverture';
 import { Symbole } from '../composants/Symbole';
 import { useDepot } from '../donnees/contexte';
+import { confirmer } from '../composants/Dialogues';
 import { usePanneauHistorique } from '../utilitaires/historique';
 
 interface Props {
@@ -34,7 +35,7 @@ export function EditeurLivre({ livre, surFermer }: Props) {
   const supprimer = async () => {
     if (!livre) return;
     const message = `Supprimer définitivement « ${livre.titre} » et toutes ses recettes ?`;
-    if (!window.confirm(message)) return;
+    if (!(await confirmer(message, { oui: 'Supprimer', danger: true }))) return;
     await depot.supprimerLivre(livre.id);
     fermer();
   };

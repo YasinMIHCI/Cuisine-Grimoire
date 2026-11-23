@@ -481,3 +481,20 @@
   font-style: italic;
   color: var(--encre-douce);
 }
+
+/* --- Dialogues (confirmation, information, saisie) -------------------------- */
+
+.voile--dialogue {
+  z-index: 80; /* au-dessus du mode cuisine et des panneaux */
+}
+
+.dialogue__message {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.dialogue textarea {
+  width: 100%;
+}
