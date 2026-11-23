@@ -11,6 +11,7 @@
 | (e) | Étagère : créer / renommer / supprimer / personnaliser les livres, déplacer ou copier une recette | ✅ fait |
 | (f) | Profil, amis (pseudo, lien, QR code), transmissions, réalisations, fil d'activité, pastille | ✅ fait (script supabase/03_amis.sql à exécuter) |
 | (g) | Recherche, favoris, portions ajustables, mode cuisine (Wake Lock) | ✅ fait |
+| (h) | Suites de l'audit : comptes (mot de passe oublié, suppression, confidentialité), sécurité de la base (supabase/04_securite.sql), synchronisation par différence, brouillons, minuteurs persistants, accessibilité, chargement à la demande, tests et CI | ✅ fait (script 04 à exécuter) |
 
 ## 2. Choix techniques
 
@@ -24,7 +25,11 @@
   IndexedDB (lecture et écriture immédiates). Chaque modification est marquée « à
   synchroniser » et envoyée au retour du réseau ; la modification la plus récente
   l'emporte (`modifie_le`), et les suppressions sont « douces » (`supprime_le`) pour se
-  propager aux autres appareils.
+  propager aux autres appareils. La base date chaque écriture avec sa propre horloge
+  (`synchro_le`) : l'appli ne demande que les lignes modifiées depuis sa dernière
+  synchronisation (et tout, une fois par jour, pour repérer les lignes effacées), page par
+  page. Une date venue d'un appareil en avance est ramenée à l'heure du serveur, et une
+  écriture plus ancienne que la version du serveur est ignorée.
 - **Images** : redimensionnées côté téléphone (1280 px max, WebP ou JPEG à 80 %) avant
   envoi dans Supabase Storage ; gardées sur l'appareil pour la consultation hors ligne.
 - **Mode local** : sans configuration Supabase, l'appli fonctionne sans compte.
@@ -119,9 +124,13 @@ Stockage (espaces privés) : `recettes` (`<id utilisateur>/…`), `partages` (`<
 
 ## 6. Tests
 
-- `supabase/` : les trois scripts sont testés sur PostgreSQL 16 avec une imitation des
-  schémas Supabase (`auth`, `storage`) — 54 vérifications de sécurité (ce que chaque
-  compte peut voir ou faire, et ce qui lui est refusé).
+- `npm run verifier` : types, oxlint, et tests Vitest des utilitaires (pagination,
+  recherche, quantités et fractions, minuteurs) et de la synchronisation (base locale
+  simulée, faux Supabase : pagination, différence, conflits, ligne refusée).
+- `supabase/tests/lancer.sh` : les scripts sont exécutés deux fois sur PostgreSQL 16 avec
+  une imitation des schémas Supabase (`auth`, `storage`), puis 35 vérifications de
+  sécurité (ce que chaque compte peut voir ou faire, et ce qui lui est refusé).
+- Les deux tournent dans GitHub Actions avant chaque déploiement.
 - Parcours complets testés dans Chromium (taille téléphone) : mode local, synchronisation
   avec le vrai projet Supabase, et parcours social à trois comptes sur un serveur local
   imitant Supabase.

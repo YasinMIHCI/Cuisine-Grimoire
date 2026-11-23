@@ -23,6 +23,11 @@ Adresse : https://yasinmihci.github.io/Cuisine-Grimoire/
   transmission d'un livre ou d'une recette (copie indépendante « transmise par… »),
   photos de réalisations, fil d'activité et pastille de notifications.
 - **Hors ligne** : tout est consultable et modifiable sans réseau, synchronisé au retour.
+- **Compte** : mot de passe oublié, changement de mot de passe, déconnexion avec effacement
+  des données de l'appareil, suppression du compte, page de confidentialité.
+
+Avant d'ouvrir l'appli au public, renseigner l'adresse de contact « données personnelles »
+dans `src/composants/Confidentialite.tsx` (`CONTACT_CONFIDENTIALITE`).
 
 Plan, structure du projet et schéma de base de données : [docs/PLAN.md](docs/PLAN.md).
 Création du projet Supabase : [docs/SUPABASE.md](docs/SUPABASE.md).
@@ -39,6 +44,16 @@ téléphone connecté au même Wi-Fi. Sans fichier `.env.local`, l'appli fonctio
 local (sans compte, avec un livre d'exemple). L'installation en PWA et le mode hors ligne
 demandent du HTTPS : pour cela, tester la version déployée.
 
+## Vérifications
+
+```bash
+npm run verifier            # types, règles du code (oxlint) et tests (Vitest)
+bash supabase/tests/lancer.sh   # scripts SQL et règles de sécurité (PostgreSQL 16)
+```
+
+Elles tournent aussi dans GitHub Actions à chaque push ; le déploiement n'a lieu que si
+elles passent.
+
 ## Version de production
 
 ```bash
@@ -49,5 +64,5 @@ npm run preview
 ## Déploiement (GitHub Pages)
 
 Chaque push sur `main` déclenche le workflow `.github/workflows/deployer.yml`, qui
-construit l'appli et la publie sur `https://<compte>.github.io/<dépôt>/`.
+vérifie, construit l'appli et la publie sur `https://<compte>.github.io/<dépôt>/`.
 À activer une seule fois : Settings → Pages → Source : « GitHub Actions ».

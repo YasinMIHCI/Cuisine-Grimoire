@@ -20,9 +20,17 @@ compte, les recettes restent sur l'appareil.
    couverture des livres), puis avec [`supabase/03_amis.sql`](../supabase/03_amis.sql)
    (profils, amis, transmissions, réalisations, fil d'activité).
 
+4. Enfin [`supabase/04_securite.sql`](../supabase/04_securite.sql) : valeurs contrôlées
+   par la base, limites des espaces de stockage (photos de 5 Mo au plus), synchronisation
+   par différence, suppression de compte.
+
 Les scripts peuvent être relancés sans risque. Tant que le troisième n'est pas exécuté,
 l'appli fonctionne normalement mais le « Cercle des amis » affiche qu'une mise à jour de
-la base est nécessaire.
+la base est nécessaire. Sans le quatrième, la synchronisation reprend tout à chaque fois
+(plus lente) et « Supprimer mon compte » indique qu'il faut l'exécuter.
+
+Ces scripts sont testés automatiquement (à chaque push, et en local avec
+`bash supabase/tests/lancer.sh`, qui demande PostgreSQL 16) sur une imitation de Supabase.
 
 Le premier script crée les tables `profils`, `livres`, `recettes`, l'espace de stockage privé
 `recettes` pour les photos, et les règles qui font que chacun ne voit que ses données.
@@ -36,12 +44,25 @@ Menu **Authentication** → **URL Configuration** :
 - **Redirect URLs** → « Add URL » : la même adresse, puis `http://localhost:5173/`
   (pour les tests sur ordinateur).
 
+Ces adresses servent aussi au lien « Mot de passe oublié » : sans elles, le lien reçu par
+e-mail ne ramène pas dans l'appli.
+
 ## 4. Connexion par e-mail
 
 Elle est activée par défaut. Par défaut aussi, un nouveau compte doit cliquer sur un
 lien reçu par e-mail avant de pouvoir se connecter. Pour simplifier les essais, on peut
 désactiver cette confirmation : **Authentication** → **Sign In / Providers** → **Email**
 → décocher « Confirm email ».
+
+Réglages conseillés, dans **Authentication** → **Sign In / Providers** → **Email** (ou
+**Attack Protection** selon la version du tableau de bord) :
+
+- **Minimum password length** : 8 (comme l'appli) ;
+- **Leaked password protection** (formule payante) : refuse les mots de passe connus des
+  pirates.
+
+Les e-mails envoyés par Supabase (confirmation, mot de passe oublié) sont en anglais par
+défaut : on peut les traduire dans **Authentication** → **Emails** → **Templates**.
 
 ## 5. Connexion Google (facultatif, peut se faire plus tard)
 
