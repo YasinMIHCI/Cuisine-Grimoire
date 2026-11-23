@@ -103,6 +103,23 @@ const ligneVersRecette = (x: any): Recette => ({
 const maintenant = () => new Date().toISOString();
 const dateDe = (iso: string) => Date.parse(iso);
 
+/** Nombre de lignes demandées par requête (Supabase en renvoie 1000 au plus). */
+const TAILLE_PAGE = 500;
+/** Une synchronisation complète (qui détecte aussi les lignes effacées) au moins une fois par jour. */
+const INTERVALLE_COMPLETE = 24 * 3600 * 1000;
+/** Marge de recouvrement des synchronisations par différence (transactions encore en cours). */
+const MARGE_CURSEUR = 60 * 1000;
+
+type Table = 'livres' | 'recettes';
+
+/** Ce qu'on retient de la dernière synchronisation (magasin « meta »). */
+interface Curseur {
+  /** Plus grande date `synchro_le` reçue du serveur (horloge du serveur). */
+  synchroLe: string | null;
+  /** Date (horloge de l'appareil) de la dernière synchronisation complète. */
+  completeLe: number;
+}
+
 export class Depot {
   private livres = new Map<string, Livre>();
   private recettes = new Map<string, Recette>();
@@ -113,6 +130,10 @@ export class Depot {
   private minuterie: ReturnType<typeof setTimeout> | undefined;
   /** Adresses (object URL) des images déjà chargées. */
   private adressesImages = new Map<string, Promise<string | null>>();
+
+  /** Vrai si la base n'a pas encore la colonne `synchro_le` (script 04 non exécuté). */
+  private sansCurseur = false;
+  private ferme = false;
 
   private constructor(
     readonly uid: string,
@@ -140,6 +161,23 @@ export class Depot {
     }
     depot.publier();
     return depot;
+  }
+
+  /** Ferme la base locale (en quittant le compte) et libère la mémoire des images. */
+  fermer() {
+    this.ferme = true;
+    clearTimeout(this.minuterie);
+    this.abonnes.clear();
+    for (const promesse of this.adressesImages.values()) void promesse.then((a) => a && URL.revokeObjectURL(a));
+    this.adressesImages.clear();
+    this.base.close();
+  }
+
+  /** Nombre de modifications et de photos pas encore envoyées dans le cloud. */
+  async nombreEnAttente(): Promise<number> {
+    const lignes = [...this.livres.values(), ...this.recettes.values()].filter((x) => x.aSynchroniser).length;
+    const images = (await lireTout<ImageLocale>(this.base, 'images')).filter((i) => i.aEnvoyer || i.aSupprimer).length;
+    return lignes + images;
   }
 
   // ------------------------------------------------------------ Abonnement
@@ -261,7 +299,7 @@ export class Depot {
     // Les images retirées de la recette sont effacées
     if (ancienne) {
       const gardees = new Set(imagesDe(complete));
-      for (const id of imagesDe(ancienne)) if (!gardees.has(id)) await this.supprimerImage(id);
+      for (const image of imagesDe(ancienne)) if (!gardees.has(image)) await this.supprimerImage(image);
     }
     this.publier();
     this.planifierSynchro();
@@ -382,8 +420,35 @@ export class Depot {
     return copie;
   }
 
-  private async supprimerImage(id: string) {
+  /** Oublie l'adresse affichable d'une image et libère sa mémoire. */
+  private oublierAdresse(id: string) {
+    const promesse = this.adressesImages.get(id);
     this.adressesImages.delete(id);
+    // (laissée un instant : une image peut encore être affichée pendant sa disparition)
+    void promesse?.then((a) => a && setTimeout(() => URL.revokeObjectURL(a), 5000));
+  }
+
+  /**
+   * Efface des images ajoutées mais finalement pas gardées (formulaire abandonné…),
+   * si aucun livre ni aucune recette ne les utilise.
+   */
+  async abandonnerImages(ids: string[]) {
+    const utilisees = new Set<string>();
+    for (const r of this.recettes.values()) if (!r.supprimeLe) imagesDe(r).forEach((i) => utilisees.add(i));
+    for (const l of this.livres.values()) if (!l.supprimeLe && l.imageCouverture) utilisees.add(l.imageCouverture);
+    for (const id of ids) {
+      if (utilisees.has(id)) continue;
+      const image = await lire<ImageLocale>(this.base, 'images', id);
+      if (!image) continue;
+      this.oublierAdresse(id);
+      // Jamais envoyée : on l'efface simplement ; sinon on l'efface aussi du cloud
+      if (image.aEnvoyer || !this.enLigne) await effacer(this.base, 'images', id);
+      else await this.supprimerImage(id);
+    }
+  }
+
+  private async supprimerImage(id: string) {
+    this.oublierAdresse(id);
     if (this.enLigne) {
       // On garde une trace pour l'effacer aussi du cloud à la prochaine synchro
       await ecrire(this.base, 'images', { id, blob: null, aEnvoyer: false, aSupprimer: true } satisfies ImageLocale);
@@ -433,13 +498,14 @@ export class Depot {
 
   /**
    * Synchronise avec Supabase :
-   *  1. envoi des photos en attente ;
-   *  2. récupération des livres et recettes du cloud, fusion avec le local ;
+   *  1. envoi des photos en attente (une photo en échec n'arrête pas le reste) ;
+   *  2. récupération des livres et recettes modifiés depuis la dernière fois
+   *     (ou de tout, une fois par jour), fusion avec le local ;
    *  3. envoi des modifications locales ;
    *  4. effacement, dans le cloud, des photos supprimées.
    */
   async synchroniser(): Promise<void> {
-    if (!this.enLigne) return;
+    if (!this.enLigne || this.ferme) return;
     if (this.synchroEnCours) {
       this.synchroARefaire = true;
       return;
@@ -457,23 +523,36 @@ export class Depot {
       const images = await lireTout<ImageLocale>(this.base, 'images');
 
       // 1. Photos en attente d'envoi
+      let photosEnEchec = 0;
+      let dernierEchec: string | undefined;
       for (const image of images) {
         if (!image.aEnvoyer || !image.blob) continue;
         const { error } = await stockage.upload(`${this.uid}/${image.id}`, image.blob, {
           upsert: true,
           contentType: image.blob.type,
         });
-        if (error) throw error;
+        if (error) {
+          photosEnEchec++;
+          dernierEchec = error.message;
+          continue;
+        }
         await ecrire(this.base, 'images', { ...image, aEnvoyer: false });
       }
 
       // 2. Récupération et fusion (les livres d'abord : les recettes en dépendent)
-      const distantsLivres = await sb.from('livres').select('*');
-      if (distantsLivres.error) throw distantsLivres.error;
-      const distantesRecettes = await sb.from('recettes').select('*');
-      if (distantesRecettes.error) throw distantesRecettes.error;
-      await this.fusionner('livres', this.livres, distantsLivres.data.map(ligneVersLivre));
-      await this.fusionner('recettes', this.recettes, distantesRecettes.data.map(ligneVersRecette));
+      for (const table of ['livres', 'recettes'] as const) {
+        const curseur = await this.lireCurseur(table);
+        const complete = this.sansCurseur || !curseur.synchroLe || Date.now() - curseur.completeLe > INTERVALLE_COMPLETE;
+        const depuis = complete ? null : new Date(dateDe(curseur.synchroLe!) - MARGE_CURSEUR).toISOString();
+        const lignes = await this.telecharger(table, depuis);
+        if (table === 'livres') await this.fusionner('livres', this.livres, lignes.map(ligneVersLivre), complete);
+        else await this.fusionner('recettes', this.recettes, lignes.map(ligneVersRecette), complete);
+        const plusRecente = lignes.reduce<string | null>(
+          (max, x) => (x.synchro_le && (!max || x.synchro_le > max) ? x.synchro_le : max),
+          curseur.synchroLe,
+        );
+        await this.ecrireCurseur(table, { synchroLe: plusRecente, completeLe: complete ? Date.now() : curseur.completeLe });
+      }
 
       // Tout premier lancement du compte (aucun livre, même supprimé) : on crée son premier livre
       if (this.livres.size === 0) {
@@ -496,17 +575,26 @@ export class Depot {
 
       // 4. Photos supprimées
       const aSupprimer = images.filter((i) => i.aSupprimer);
-      if (aSupprimer.length > 0) {
-        const { error } = await stockage.remove(aSupprimer.map((i) => `${this.uid}/${i.id}`));
+      for (let i = 0; i < aSupprimer.length; i += 500) {
+        const paquet = aSupprimer.slice(i, i + 500);
+        const { error } = await stockage.remove(paquet.map((x) => `${this.uid}/${x.id}`));
         if (error) throw error;
-        for (const image of aSupprimer) await effacer(this.base, 'images', image.id);
+        for (const image of paquet) await effacer(this.base, 'images', image.id);
       }
 
-      this.publier({ synchro: 'a-jour' });
+      if (photosEnEchec > 0) {
+        const s = photosEnEchec > 1 ? 's' : '';
+        this.publier({
+          synchro: 'erreur',
+          erreur: `${photosEnEchec} photo${s} n’${photosEnEchec > 1 ? 'ont' : 'a'} pas pu être envoyée${s} (${dernierEchec}) ; nouvel essai à la prochaine synchronisation.`,
+        });
+      } else {
+        this.publier({ synchro: 'a-jour' });
+      }
     } catch (erreur) {
       console.error('Synchronisation impossible', erreur);
       const detail = erreur instanceof Error ? erreur.message : String((erreur as { message?: string })?.message ?? erreur);
-      this.publier({ synchro: navigator.onLine ? 'erreur' : 'hors-ligne', erreur: detail });
+      if (!this.ferme) this.publier({ synchro: navigator.onLine ? 'erreur' : 'hors-ligne', erreur: detail });
     } finally {
       this.synchroEnCours = false;
       if (this.synchroARefaire) {
@@ -516,8 +604,42 @@ export class Depot {
     }
   }
 
+  private async lireCurseur(table: Table): Promise<Curseur> {
+    return (await lire<Curseur>(this.base, 'meta', `curseur:${table}`)) ?? { synchroLe: null, completeLe: 0 };
+  }
+
+  private ecrireCurseur(table: Table, curseur: Curseur) {
+    return ecrire(this.base, 'meta', curseur, `curseur:${table}`);
+  }
+
+  /**
+   * Lignes d'une table, page par page (sans quoi Supabase s'arrête à 1000).
+   * @param depuis seulement les lignes modifiées après cette date (serveur), ou tout si null
+   */
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  private async telecharger(table: Table, depuis: string | null): Promise<any[]> {
+    const toutes: any[] = [];
+    for (let debut = 0; ; debut += TAILLE_PAGE) {
+      let requete = supabase!.from(table).select('*');
+      if (depuis && !this.sansCurseur) requete = requete.gt('synchro_le', depuis);
+      const { data, error } = await requete.order('id').range(debut, debut + TAILLE_PAGE - 1);
+      if (error) {
+        // Base pas encore mise à jour : pas de colonne synchro_le, on prend tout
+        if (!this.sansCurseur && /synchro_le/.test(error.message)) {
+          console.warn('Colonne « synchro_le » absente : exécutez supabase/04_securite.sql');
+          this.sansCurseur = true;
+          return this.telecharger(table, null);
+        }
+        throw error;
+      }
+      toutes.push(...data);
+      if (data.length < TAILLE_PAGE) return toutes;
+    }
+  }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
   /** Fusionne les lignes venues du cloud avec les données locales. */
-  private async fusionner<T extends Synchronisable>(magasin: Magasin, carte: Map<string, T>, distants: T[]) {
+  private async fusionner<T extends Synchronisable>(magasin: Magasin, carte: Map<string, T>, distants: T[], complete: boolean) {
     const vus = new Set<string>();
     for (const distant of distants) {
       vus.add(distant.id);
@@ -528,7 +650,10 @@ export class Depot {
         await this.stocker(magasin, carte, distant);
       }
     }
-    // Ce qui a disparu du cloud (et n'attend pas d'envoi) disparaît aussi ici
+    // Ce qui a disparu du cloud (et n'attend pas d'envoi) disparaît aussi ici.
+    // (Seulement lors d'une synchronisation complète : une synchronisation par
+    // différence ne reçoit que les lignes modifiées.)
+    if (!complete) return;
     for (const local of [...carte.values()]) {
       if (!vus.has(local.id) && !local.aSynchroniser) {
         carte.delete(local.id);
@@ -541,23 +666,42 @@ export class Depot {
   private async envoyer<T extends Synchronisable>(magasin: 'livres' | 'recettes', carte: Map<string, T>, versLigne: (x: T) => object) {
     const enAttente = [...carte.values()].filter((x) => x.aSynchroniser);
     if (enAttente.length === 0) return;
-    let lignes = enAttente.map(versLigne) as Record<string, unknown>[];
-    let { error } = await supabase!.from(magasin).upsert(lignes);
-    // Base pas encore mise à jour (un script de supabase/ non exécuté) : on envoie
-    // quand même le reste, sans les colonnes inconnues de la base.
-    for (let essai = 0; error && essai < 4; essai++) {
-      const colonne = /could not find the '(\w+)' column/i.exec(error.message)?.[1];
-      if (!colonne) break;
-      console.warn(`Colonne « ${colonne} » absente de la base : exécutez les scripts de supabase/`);
-      lignes = lignes.map(({ [colonne]: _ignoree, ...reste }) => reste);
-      ({ error } = await supabase!.from(magasin).upsert(lignes));
-    }
-    if (error) throw error;
-    for (const element of enAttente) {
-      // Si l'élément a encore changé pendant l'envoi, il repartira au prochain tour
-      if (carte.get(element.id) === element) {
-        await this.stocker(magasin, carte, { ...element, aSynchroniser: false });
+    /** Envoi réussi : l'élément n'attend plus (sauf s'il a encore changé entre-temps). */
+    const envoye = async (element: T) => {
+      if (carte.get(element.id) === element) await this.stocker(magasin, carte, { ...element, aSynchroniser: false });
+    };
+    const refusees: string[] = [];
+    for (let i = 0; i < enAttente.length; i += TAILLE_PAGE) {
+      const paquet = enAttente.slice(i, i + TAILLE_PAGE);
+      let lignes = paquet.map(versLigne) as Record<string, unknown>[];
+      let { error } = await supabase!.from(magasin).upsert(lignes);
+      // Base pas encore mise à jour (un script de supabase/ non exécuté) : on envoie
+      // quand même le reste, sans les colonnes inconnues de la base.
+      for (let essai = 0; error && essai < 4; essai++) {
+        const colonne = /could not find the '(\w+)' column/i.exec(error.message)?.[1];
+        if (!colonne) break;
+        console.warn(`Colonne « ${colonne} » absente de la base : exécutez les scripts de supabase/`);
+        lignes = lignes.map(({ [colonne]: _ignoree, ...reste }) => reste);
+        ({ error } = await supabase!.from(magasin).upsert(lignes));
       }
+      if (!error) {
+        for (const element of paquet) await envoye(element);
+        continue;
+      }
+      // Une ligne refusée par la base (valeur hors limites…) ne doit pas bloquer
+      // les autres : on les envoie alors une par une.
+      if (!/^(23514|23503|22001)$/.test(error.code ?? '')) throw error;
+      for (const [j, ligne] of lignes.entries()) {
+        const seule = await supabase!.from(magasin).upsert(ligne);
+        if (seule.error) refusees.push(`« ${String(ligne.titre)} »`);
+        else await envoye(paquet[j]);
+      }
+    }
+    if (refusees.length > 0) {
+      const plusieurs = refusees.length > 1;
+      throw new Error(
+        `Refusé par le cloud (valeur trop longue ou invalide) : ${refusees.join(', ')}. Modifiez ${plusieurs ? 'ces éléments' : 'cet élément'} pour réessayer.`,
+      );
     }
   }
 }

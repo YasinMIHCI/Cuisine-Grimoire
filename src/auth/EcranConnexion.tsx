@@ -2,27 +2,34 @@ import { useState, type FormEvent } from 'react';
 import { supabase } from '../donnees/supabase';
 import { Ornement } from '../composants/Ornement';
 import { Symbole } from '../composants/Symbole';
+import { Confidentialite } from '../composants/Confidentialite';
+import { ChampMotDePasse, LONGUEUR_MIN_MOT_DE_PASSE } from './ChampMotDePasse';
+import { traduireErreurAuth } from './erreurs';
 import { adresseDeRetour } from './session';
 
-/** Traduit les messages d'erreur de Supabase. */
-function traduire(message: string): string {
-  if (/invalid login credentials/i.test(message)) return 'E-mail ou mot de passe incorrect.';
-  if (/already registered/i.test(message)) return 'Un compte existe déjà avec cet e-mail.';
-  if (/email not confirmed/i.test(message)) return 'Confirmez d’abord votre e-mail (lien reçu par courrier).';
-  if (/at least 6 characters/i.test(message)) return 'Le mot de passe doit faire au moins 6 caractères.';
-  if (/rate limit|too many/i.test(message)) return 'Trop de tentatives : réessayez dans quelques minutes.';
-  if (/failed to fetch|network/i.test(message)) return 'Pas de connexion à internet.';
-  return message;
-}
+type Mode = 'connexion' | 'inscription' | 'oubli';
 
-/** Écran de connexion : e-mail + mot de passe, ou compte Google. */
+const SOUS_TITRES: Record<Mode, string> = {
+  connexion: 'Ouvrez votre bibliothèque',
+  inscription: 'Créez votre bibliothèque',
+  oubli: 'Retrouvez la clé de votre bibliothèque',
+};
+
+/** Écran de connexion : e-mail + mot de passe, ou compte Google ; mot de passe oublié. */
 export function EcranConnexion() {
-  const [mode, setMode] = useState<'connexion' | 'inscription'>('connexion');
+  const [mode, setMode] = useState<Mode>('connexion');
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [confidentialite, setConfidentialite] = useState(false);
+
+  const changerMode = (nouveau: Mode) => {
+    setMode(nouveau);
+    setErreur(null);
+    setInfo(null);
+  };
 
   const valider = async (evenement: FormEvent) => {
     evenement.preventDefault();
@@ -30,20 +37,36 @@ export function EcranConnexion() {
     setEnCours(true);
     setErreur(null);
     setInfo(null);
-    if (mode === 'connexion') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
-      if (error) setErreur(traduire(error.message));
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: motDePasse,
-        options: { emailRedirectTo: adresseDeRetour() },
-      });
-      if (error) setErreur(traduire(error.message));
-      // Selon le réglage Supabase, il faut confirmer son e-mail avant d'être connecté
-      else if (!data.session) setInfo('Compte créé ! Ouvrez le lien reçu par e-mail pour le confirmer.');
+    try {
+      if (mode === 'connexion') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
+        if (error) setErreur(traduireErreurAuth(error.message));
+      } else if (mode === 'inscription') {
+        if (motDePasse.length < LONGUEUR_MIN_MOT_DE_PASSE) {
+          setErreur(`Le mot de passe doit faire au moins ${LONGUEUR_MIN_MOT_DE_PASSE} caractères.`);
+          return;
+        }
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password: motDePasse,
+          options: { emailRedirectTo: adresseDeRetour() },
+        });
+        if (error) setErreur(traduireErreurAuth(error.message));
+        // Selon le réglage Supabase, il faut confirmer son e-mail avant d'être connecté
+        else if (!data.session) setInfo('Compte créé ! Ouvrez le lien reçu par e-mail pour le confirmer.');
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: adresseDeRetour() });
+        if (error) setErreur(traduireErreurAuth(error.message));
+        else
+          setInfo(
+            'Si un compte existe avec cette adresse, un e-mail vient de partir. Ouvrez le lien qu’il contient pour choisir un nouveau mot de passe.',
+          );
+      }
+    } catch (e) {
+      setErreur(traduireErreurAuth((e as Error).message));
+    } finally {
+      setEnCours(false);
     }
-    setEnCours(false);
   };
 
   const avecGoogle = async () => {
@@ -53,11 +76,11 @@ export function EcranConnexion() {
       provider: 'google',
       options: { redirectTo: adresseDeRetour() },
     });
-    if (error) setErreur(traduire(error.message));
+    if (error) setErreur(traduireErreurAuth(error.message));
   };
 
   return (
-    <div className="cadre-livre">
+    <main className="cadre-livre">
       <div className="feuille">
         <div className="feuille__recto parchemin">
           <div className="page page--defilante">
@@ -66,9 +89,7 @@ export function EcranConnexion() {
                 <Symbole nom="chaudron" taille={44} />
               </div>
               <h1 className="frontispice__titre">Grimoire de recettes</h1>
-              <p className="frontispice__sous-titre">
-                {mode === 'connexion' ? 'Ouvrez votre bibliothèque' : 'Créez votre bibliothèque'}
-              </p>
+              <p className="frontispice__sous-titre">{SOUS_TITRES[mode]}</p>
               <Ornement />
             </header>
 
@@ -83,42 +104,46 @@ export function EcranConnexion() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </label>
-              <label className="champ">
-                <span>Mot de passe</span>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-                  value={motDePasse}
-                  onChange={(e) => setMotDePasse(e.target.value)}
+              {mode !== 'oubli' && (
+                <ChampMotDePasse
+                  libelle="Mot de passe"
+                  valeur={motDePasse}
+                  surChangement={setMotDePasse}
+                  nouveau={mode === 'inscription'}
                 />
-              </label>
+              )}
+              {mode === 'connexion' && (
+                <button type="button" className="bouton bouton--lien bouton--discret" onClick={() => changerMode('oubli')}>
+                  Mot de passe oublié ?
+                </button>
+              )}
 
               {erreur && <p className="message message--erreur" role="alert">{erreur}</p>}
               {info && <p className="message" role="status">{info}</p>}
 
               <button type="submit" className="bouton bouton--principal" disabled={enCours}>
-                {mode === 'connexion' ? 'Se connecter' : 'Créer mon compte'}
+                {mode === 'connexion' ? 'Se connecter' : mode === 'inscription' ? 'Créer mon compte' : 'Recevoir le lien'}
               </button>
-              <button type="button" className="bouton" onClick={avecGoogle}>
-                Continuer avec Google
-              </button>
+              {mode !== 'oubli' && (
+                <button type="button" className="bouton" onClick={avecGoogle}>
+                  Continuer avec Google
+                </button>
+              )}
               <button
                 type="button"
                 className="bouton bouton--lien"
-                onClick={() => {
-                  setMode(mode === 'connexion' ? 'inscription' : 'connexion');
-                  setErreur(null);
-                  setInfo(null);
-                }}
+                onClick={() => changerMode(mode === 'connexion' ? 'inscription' : 'connexion')}
               >
-                {mode === 'connexion' ? 'Pas encore de compte ? En créer un' : 'Déjà un compte ? Se connecter'}
+                {mode === 'connexion' ? 'Pas encore de compte ? En créer un' : 'Retour à la connexion'}
+              </button>
+              <button type="button" className="bouton bouton--lien bouton--discret" onClick={() => setConfidentialite(true)}>
+                Confidentialité et données personnelles
               </button>
             </form>
           </div>
         </div>
       </div>
-    </div>
+      {confidentialite && <Confidentialite surFermer={() => setConfidentialite(false)} />}
+    </main>
   );
 }

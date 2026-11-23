@@ -12,6 +12,9 @@ export function elementsFocalisables(conteneur: HTMLElement): HTMLElement[] {
   );
 }
 
+/** Fenêtres ouvertes, de la plus ancienne à la plus récente : seule la dernière réagit. */
+const pile: HTMLElement[] = [];
+
 /**
  * À poser sur le conteneur d'une fenêtre (panneau, mode cuisine…).
  * @param surEchap appelé à l'appui sur Échap (fermeture)
@@ -29,8 +32,10 @@ export function usePiegeFocus<T extends HTMLElement>(surEchap?: () => void) {
     const premier = elementsFocalisables(conteneur).find((e) => e.matches('input, select, textarea'));
     if (!conteneur.hasAttribute('tabindex')) conteneur.tabIndex = -1;
     (premier ?? conteneur).focus({ preventScroll: true });
+    pile.push(conteneur);
 
     const surTouche = (e: KeyboardEvent) => {
+      if (pile[pile.length - 1] !== conteneur) return; // une autre fenêtre est par-dessus
       if (e.key === 'Escape' && refEchap.current) {
         e.preventDefault();
         e.stopPropagation();
@@ -60,6 +65,7 @@ export function usePiegeFocus<T extends HTMLElement>(surEchap?: () => void) {
     document.addEventListener('keydown', surTouche, true);
     return () => {
       document.removeEventListener('keydown', surTouche, true);
+      pile.splice(pile.indexOf(conteneur), 1);
       if (precedent?.isConnected) precedent.focus({ preventScroll: true });
     };
   }, []);

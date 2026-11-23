@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ContexteDepot, useDepot, useEtatDepot } from '../donnees/contexte';
 import { Depot } from '../donnees/depot';
 import { LivreOuvert } from '../livre/LivreOuvert';
@@ -9,6 +9,22 @@ import { informer } from '../composants/Dialogues';
 
 /** Clé de stockage de l'apparence du dernier livre ouvert (pour l'intro). */
 export const CLE_DERNIER_LIVRE = 'grimoire:dernier-livre';
+/** localStorage peut être indisponible (navigation privée, réglages) : on l'ignore alors. */
+function lireStockage(cle: string): string | null {
+  try {
+    return localStorage.getItem(cle);
+  } catch {
+    return null;
+  }
+}
+function ecrireStockage(cle: string, valeur: string) {
+  try {
+    localStorage.setItem(cle, valeur);
+  } catch {
+    // tant pis : ce n'est qu'un confort
+  }
+}
+
 /** Clé de stockage de l'identifiant du dernier livre ouvert, par compte. */
 const cleDernierId = (uid: string) => `grimoire:dernier-livre-id:${uid}`;
 
@@ -18,6 +34,8 @@ const cleDernierId = (uid: string) => `grimoire:dernier-livre-id:${uid}`;
  */
 export function Bibliotheque({ uid }: { uid: string }) {
   const [depot, setDepot] = useState<Depot | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [essai, setEssai] = useState(0);
 
   useEffect(() => {
     let annule = false;
@@ -25,12 +43,20 @@ export function Bibliotheque({ uid }: { uid: string }) {
     const synchroniser = () => void ouvert?.synchroniser();
     const auRetour = () => document.visibilityState === 'visible' && synchroniser();
 
-    void Depot.ouvrir(uid).then((d) => {
-      if (annule) return;
-      ouvert = d;
-      setDepot(d);
-      synchroniser();
-    });
+    Depot.ouvrir(uid)
+      .then((d) => {
+        if (annule) {
+          d.fermer();
+          return;
+        }
+        ouvert = d;
+        setDepot(d);
+        synchroniser();
+      })
+      .catch((e: unknown) => {
+        console.error('Base locale indisponible', e);
+        if (!annule) setErreur(e instanceof Error ? e.message : String(e));
+      });
     // On resynchronise au retour du réseau et au retour au premier plan
     window.addEventListener('online', synchroniser);
     document.addEventListener('visibilitychange', auRetour);
@@ -38,9 +64,33 @@ export function Bibliotheque({ uid }: { uid: string }) {
       annule = true;
       window.removeEventListener('online', synchroniser);
       document.removeEventListener('visibilitychange', auRetour);
+      ouvert?.fermer();
     };
-  }, [uid]);
+  }, [uid, essai]);
 
+  if (erreur) {
+    return (
+      <PageAttente>
+        <p className="message message--erreur" role="alert">
+          Impossible d’ouvrir la bibliothèque sur cet appareil. La navigation privée, un espace de stockage plein ou un
+          autre onglet de l’appli ouvert peuvent en être la cause.
+        </p>
+        <p className="message">
+          <small>({erreur})</small>
+        </p>
+        <button
+          type="button"
+          className="bouton bouton--principal"
+          onClick={() => {
+            setErreur(null);
+            setEssai((n) => n + 1);
+          }}
+        >
+          Réessayer
+        </button>
+      </PageAttente>
+    );
+  }
   if (!depot) return <PageAttente />;
   return (
     <ContexteDepot.Provider value={depot}>
@@ -72,7 +122,7 @@ function Navigation() {
   // Au lancement, on rouvre le dernier livre consulté (s'il existe toujours) ;
   // au tout premier lancement, on arrive sur l'étagère.
   const [ecran, setEcran] = useState<Ecran>(() => {
-    const id = localStorage.getItem(cleDernierId(depot.uid));
+    const id = lireStockage(cleDernierId(depot.uid));
     return id && livres.some((l) => l.id === id) ? { type: 'livre', id, depuisEtagere: true } : { type: 'etagere' };
   });
 
@@ -83,7 +133,7 @@ function Navigation() {
       window.history.replaceState(null, '');
       if (ecran.type === 'livre') window.history.pushState({ livre: ecran.id }, '');
       // Lien d'invitation ouvert : direction le cercle des amis
-      if (depot.enLigne && localStorage.getItem(CLE_INVITATION)) ouvrirAmis('amis');
+      if (depot.enLigne && lireStockage(CLE_INVITATION)) ouvrirAmis('amis');
     }
     const surChangementHistorique = (evenement: PopStateEvent) => {
       const etat = evenement.state as { livre?: string; amis?: boolean; onglet?: Onglet } | null;
@@ -103,7 +153,7 @@ function Navigation() {
 
   const ouvrirLivre = (id: string, recette?: string) => {
     window.history.pushState({ livre: id }, '');
-    localStorage.setItem(cleDernierId(depot.uid), id);
+    ecrireStockage(cleDernierId(depot.uid), id);
     setEcran((actuel) => ({ type: 'livre', id, recette, depuisEtagere: actuel.type === 'etagere' }));
   };
 
@@ -127,7 +177,7 @@ function Navigation() {
     let annule = false;
     const { titre, couleurCuir, symbole, imageCouverture } = livre;
     const memoriser = (miniature: string | null) => {
-      if (!annule) localStorage.setItem(CLE_DERNIER_LIVRE, JSON.stringify({ titre, couleurCuir, symbole, miniature }));
+      if (!annule) ecrireStockage(CLE_DERNIER_LIVRE, JSON.stringify({ titre, couleurCuir, symbole, miniature }));
     };
     if (!imageCouverture) memoriser(null);
     else void depot.adresseImage(imageCouverture).then(creerMiniature).then(memoriser);
@@ -203,15 +253,15 @@ async function creerMiniature(adresse: string | null): Promise<string | null> {
   }
 }
 
-/** Page de parchemin vide, affichée pendant le chargement. */
-export function PageAttente() {
+/** Page de parchemin vide, affichée pendant le chargement (ou avec un message). */
+export function PageAttente({ children }: { children?: ReactNode }) {
   return (
-    <div className="cadre-livre">
+    <main className="cadre-livre">
       <div className="feuille">
         <div className="feuille__recto parchemin">
-          <p className="page__attente">Le grimoire s’ouvre…</p>
+          {children ? <div className="page page--defilante">{children}</div> : <p className="page__attente" role="status">Le grimoire s’ouvre…</p>}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

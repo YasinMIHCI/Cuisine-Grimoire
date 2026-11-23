@@ -24,8 +24,14 @@ export function ouvrirBase(uid: string): Promise<IDBDatabase> {
       base.createObjectStore('images', { keyPath: 'id' });
       base.createObjectStore('meta');
     };
-    demande.onsuccess = () => resoudre(demande.result);
+    demande.onsuccess = () => {
+      const base = demande.result;
+      // Une suppression de la base (déconnexion avec effacement) ne doit pas attendre
+      base.onversionchange = () => base.close();
+      resoudre(base);
+    };
     demande.onerror = () => rejeter(demande.error);
+    demande.onblocked = () => rejeter(new Error('La base locale est bloquée par un autre onglet.'));
   });
 }
 
