@@ -40,6 +40,8 @@ export default defineConfig({
       workbox: {
         // Tout ce qui compose l'appli est mis en cache pour fonctionner hors ligne
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Toucher la notification d'un minuteur ramène à l'appli
+        importScripts: ['sw-notifications.js'],
       },
     }),
   ],

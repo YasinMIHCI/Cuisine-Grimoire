@@ -54,7 +54,8 @@
 }
 
 .couverture__titre {
-  font-family: var(--police-titre);
+  font-family: var(--police-titre-lisible);
+  font-weight: 700;
   font-size: 8.5cqw;
   line-height: 1.2;
   text-align: center;

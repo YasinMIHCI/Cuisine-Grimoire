@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDepot, useEtatDepot } from '../donnees/contexte';
 import { usePanneauHistorique } from '../utilitaires/historique';
+import { usePiegeFocus } from '../utilitaires/focus';
 import { accepterTransmission, type TransmissionRecue } from './social';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 /** Accepter une transmission : choisir où ranger sa copie. */
 export function PanneauAccepter({ transmission, surFermer, surRangee }: Props) {
   const fermer = usePanneauHistorique(surFermer);
+  const refPiege = usePiegeFocus<HTMLDivElement>(fermer);
   const depot = useDepot();
   const { livres } = useEtatDepot();
   const estLivre = transmission.type === 'livre';
@@ -42,7 +44,7 @@ export function PanneauAccepter({ transmission, surFermer, surRangee }: Props) {
   const n = transmission.contenu.recettes.length;
   return (
     <div className="voile" onClick={fermer}>
-      <div className="panneau panneau--defilant parchemin formulaire" role="dialog" aria-label="Ranger la copie" onClick={(e) => e.stopPropagation()}>
+      <div ref={refPiege} className="panneau panneau--defilant parchemin formulaire" role="dialog" aria-modal="true" aria-label="Ranger la copie" onClick={(e) => e.stopPropagation()}>
         <h2 className="recette__section">Ranger dans la bibliothèque</h2>
         <p className="message">
           {estLivre ? `Le livre « ${transmission.titre} » (${n} recette${n > 1 ? 's' : ''})` : `La recette « ${transmission.titre} »`}, transmis

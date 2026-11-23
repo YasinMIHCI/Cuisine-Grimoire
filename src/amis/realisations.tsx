@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Recette } from '../types';
 import { usePanneauHistorique } from '../utilitaires/historique';
+import { usePiegeFocus } from '../utilitaires/focus';
 import { ilYa } from '../utilitaires/texte';
 import { useSocial } from './contexte';
 import { confirmer, informer } from '../composants/Dialogues';
@@ -104,6 +105,7 @@ export function PanneauRealisation({
   surPubliee: () => void;
 }) {
   const fermer = usePanneauHistorique(surFermer);
+  const refPiege = usePiegeFocus<HTMLDivElement>(fermer);
   const { uid } = useSocial();
   const [photo, setPhoto] = useState<File | null>(null);
   const [apercu, setApercu] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export function PanneauRealisation({
 
   return (
     <div className="voile" onClick={fermer}>
-      <div className="panneau panneau--defilant parchemin formulaire" role="dialog" aria-label="Ma réalisation" onClick={(e) => e.stopPropagation()}>
+      <div ref={refPiege} className="panneau panneau--defilant parchemin formulaire" role="dialog" aria-modal="true" aria-label="Ma réalisation" onClick={(e) => e.stopPropagation()}>
         <h2 className="recette__section">Ma réalisation</h2>
         <p className="message">Une photo de votre « {recette.titre} », visible de vos amis qui ont cette recette.</p>
         {apercu && (

@@ -68,6 +68,9 @@
 }
 
 .cuisine__minuteurs {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -91,8 +94,8 @@
 }
 
 .minuteur button {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   font-size: 1.2rem;
   color: inherit;
 }
@@ -195,4 +198,23 @@
     padding-left: max(16px, calc(50% - 340px));
     padding-right: max(16px, calc(50% - 340px));
   }
+}
+
+/* Minuteurs visibles hors du mode cuisine */
+.bandeau-minuteurs {
+  position: fixed;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 55;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
 }

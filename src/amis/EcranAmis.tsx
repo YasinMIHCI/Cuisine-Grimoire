@@ -48,7 +48,7 @@ export function EcranAmis({ ongletInitial, surRetour, surOuvrirOrigine, surOuvri
   const sansPseudo = social.disponible && !social.profil?.pseudo;
 
   return (
-    <div className="cadre-livre">
+    <main className="cadre-livre">
       <div className="feuille">
         <div className="feuille__recto parchemin">
           <div className="page page--defilante ecran-amis">
@@ -102,7 +102,7 @@ export function EcranAmis({ ongletInitial, surRetour, surOuvrirOrigine, surOuvri
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

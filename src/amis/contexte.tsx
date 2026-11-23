@@ -1,6 +1,6 @@
 // État social partagé par toute l'appli : profil, compteurs de la pastille.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BaseNonAJour, chargerProfil, compter, type Compteurs, type Profil } from './social';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { BaseNonAJour, chargerProfil, compter, nettoyerEnvois, type Compteurs, type Profil } from './social';
 
 export interface EtatSocial {
   /** Faux en mode local (sans compte) : la partie sociale est alors masquée. */
@@ -40,6 +40,8 @@ export function FournisseurSocial({ uid, actif, children }: { uid: string; actif
   const [profil, setProfil] = useState<Profil | null>(null);
   const [compteurs, setCompteurs] = useState<Compteurs>(VIDE);
 
+  const menageFait = useRef(false);
+
   const rafraichir = useCallback(async () => {
     if (!actif || !navigator.onLine) return;
     try {
@@ -47,6 +49,11 @@ export function FournisseurSocial({ uid, actif, children }: { uid: string; actif
       setProfil(p);
       setCompteurs(c);
       setDisponible(true);
+      // Une fois par session : ménage des envois auxquels tout le monde a répondu
+      if (!menageFait.current) {
+        menageFait.current = true;
+        void nettoyerEnvois(uid).catch((e) => console.warn('Ménage des envois impossible', e));
+      }
     } catch (erreur) {
       if (erreur instanceof BaseNonAJour) setDisponible(false);
       else console.warn('Nouveautés indisponibles', erreur);

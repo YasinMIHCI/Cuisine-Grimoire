@@ -5,6 +5,7 @@ import { LivreOuvert } from '../livre/LivreOuvert';
 import { FournisseurSocial } from '../amis/contexte';
 import { CLE_INVITATION, EcranAmis, type Onglet } from '../amis/EcranAmis';
 import { Etagere } from './Etagere';
+import { BandeauMinuteurs } from '../cuisine/BandeauMinuteurs';
 import { informer } from '../composants/Dialogues';
 
 /** Clé de stockage de l'apparence du dernier livre ouvert (pour l'intro). */
@@ -96,6 +97,7 @@ export function Bibliotheque({ uid }: { uid: string }) {
     <ContexteDepot.Provider value={depot}>
       <FournisseurSocial uid={uid} actif={depot.enLigne}>
         <Navigation />
+        <BandeauMinuteurs />
       </FournisseurSocial>
     </ContexteDepot.Provider>
   );

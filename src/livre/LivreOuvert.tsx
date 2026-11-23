@@ -188,7 +188,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
     [recette, portions, surImage, surAdresse, depot, ouvrir, realisations, social.uid],
   );
   const refMesure = useRef<HTMLDivElement>(null);
-  const refCadre = useRef<HTMLDivElement>(null);
+  const refCadre = useRef<HTMLElement>(null);
   /** Résultat de la pagination, rattaché à la recette mesurée. */
   const [pagination, setPagination] = useState<{ id: string; pages: number[][] } | null>(null);
   /** Incrémenté quand il faut re-mesurer (taille d'écran, polices chargées). */
@@ -299,6 +299,8 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
         numero={vue.page + 1}
         total={nombrePages}
         surRetourSommaire={retour}
+        surPrecedente={() => tourner(-1)}
+        surSuivante={() => tourner(1)}
       />
     );
   } else if (vue.type === 'edition') {
@@ -332,7 +334,7 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
   }
 
   return (
-    <div
+    <main
       className="cadre-livre"
       ref={refCadre}
       onPointerDown={surAppui}
@@ -377,6 +379,6 @@ export function LivreOuvert({ livre, recettes, recetteInitiale, surEtagere, surA
         <PanneauRealisation recette={recette} surFermer={fermerSuperpose} surPubliee={realisations.recharger} />
       )}
       {superpose?.type === 'compte' && <PanneauCompte surFermer={fermerSuperpose} />}
-    </div>
+    </main>
   );
 }

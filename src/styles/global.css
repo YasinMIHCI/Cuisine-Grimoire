@@ -20,6 +20,9 @@
   /* Typographie */
   --police-titre: 'Uncial Antiqua', 'IM Fell English', Georgia, serif;
   --police-texte: 'IM Fell English', Georgia, 'Times New Roman', serif;
+  /* Textes écrits par l'utilisateur (titres de recettes et de livres) : la police
+     onciale, très décorative, rend certains mots illisibles (« t » ressemble à « c ») */
+  --police-titre-lisible: 'IM Fell English', Georgia, serif;
 
   /* Grain de papier/cuir : bruit SVG encodé en ligne */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .15 0 0 0 0 .05 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)' opacity='.35'/%3E%3C/svg%3E");
@@ -300,13 +303,19 @@ ul {
   font-size: 0.9rem;
 }
 
-/* Petites flèches : indiquent qu'on peut tourner la page */
+/* Flèches pour tourner la page (aussi au clavier et pour les lecteurs d'écran) */
 .page__fleche {
-  width: 28px;
-  text-align: center;
-  font-size: 1.5rem;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  font-size: 1.9rem;
   line-height: 1;
   color: var(--or);
+}
+
+.page__fleche:disabled {
+  visibility: hidden;
 }
 
 /* --- Sommaire -------------------------------------------------------------- */
@@ -333,7 +342,7 @@ ul {
 }
 
 .frontispice__titre {
-  font-family: var(--police-titre);
+  font-family: var(--police-titre-lisible);
   font-weight: 400;
   font-size: clamp(1.7rem, 7.5vw, 2.6rem);
   line-height: 1.15;
@@ -467,7 +476,7 @@ ul {
 }
 
 .recette__titre {
-  font-family: var(--police-titre);
+  font-family: var(--police-titre-lisible);
   font-weight: 400;
   font-size: clamp(1.5rem, 6.5vw, 2.2rem);
   line-height: 1.2;
@@ -494,7 +503,7 @@ ul {
 
 .recette__section {
   margin: 22px 0 8px;
-  font-family: var(--police-titre);
+  font-family: var(--police-titre-lisible);
   font-weight: 400;
   font-size: 1.15rem;
   color: var(--or);

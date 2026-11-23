@@ -6,6 +6,7 @@ import { Symbole } from '../composants/Symbole';
 import { useDepot } from '../donnees/contexte';
 import { confirmer } from '../composants/Dialogues';
 import { usePanneauHistorique } from '../utilitaires/historique';
+import { usePiegeFocus } from '../utilitaires/focus';
 
 interface Props {
   /** Livre à modifier, ou null pour en créer un. */
@@ -19,6 +20,7 @@ interface Props {
  */
 export function EditeurLivre({ livre, surFermer }: Props) {
   const fermer = usePanneauHistorique(surFermer);
+  const refPiege = usePiegeFocus<HTMLFormElement>(fermer);
   const depot = useDepot();
   const [titre, setTitre] = useState(livre?.titre ?? '');
   const [couleurCuir, setCouleurCuir] = useState<string>(livre?.couleurCuir ?? COULEURS_CUIR[0]);
@@ -43,8 +45,10 @@ export function EditeurLivre({ livre, surFermer }: Props) {
   return (
     <div className="voile" onClick={fermer}>
       <form
+        ref={refPiege}
         className="panneau panneau--defilant parchemin formulaire"
         role="dialog"
+        aria-modal="true"
         aria-label={livre ? 'Personnaliser le livre' : 'Nouveau livre'}
         onClick={(e) => e.stopPropagation()}
         onSubmit={enregistrer}

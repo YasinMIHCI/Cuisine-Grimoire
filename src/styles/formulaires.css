@@ -61,15 +61,6 @@
   font-size: 0.95rem;
 }
 
-/* Croix pour retirer une ligne */
-.bouton-retirer {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  font-size: 1.4rem;
-  line-height: 1;
-  color: var(--rouge-enluminure);
-}
 
 /* Boutons ronds dans les coins d'une page (compte, modifier) */
 .bouton-compte,
@@ -154,6 +145,7 @@
 .ligne-ingredient {
   display: grid;
   grid-template-columns: 3.4em 4.6em 1fr auto;
+  /* (sur téléphone, les boutons passent sous la ligne : voir plus bas) */
   gap: 6px;
   align-items: center;
   margin-bottom: 6px;
@@ -381,8 +373,8 @@
 }
 
 .portions__bouton {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   font-size: 1.1rem;
   line-height: 1;
   color: var(--rouge-enluminure);
@@ -441,10 +433,15 @@
   background: rgba(255, 245, 215, 0.6);
 }
 
+.recherche__champ:focus-within {
+  outline: 2px solid var(--rouge-enluminure);
+  outline-offset: 2px;
+}
+
 .recherche__champ input {
   flex: 1;
   min-width: 0;
-  min-height: 42px;
+  min-height: 44px;
   font: inherit;
   color: var(--encre);
   border: 0;
@@ -460,7 +457,7 @@
 }
 
 .filtre {
-  min-height: 34px;
+  min-height: 44px;
   padding: 2px 12px;
   font-size: 0.9rem;
   color: var(--encre-douce);
@@ -497,4 +494,149 @@
 
 .dialogue textarea {
   width: 100%;
+}
+
+/* --- Ajouts : mot de passe, avis, outils de ligne, texte légal --------------- */
+
+.champ-mot-de-passe {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.champ-mot-de-passe input {
+  flex: 1;
+  min-width: 0;
+}
+
+.champ-mot-de-passe__oeil {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  color: var(--encre-douce);
+  border: 1px solid rgba(166, 124, 30, 0.6);
+  border-radius: 4px;
+}
+
+.champ__aide {
+  display: block;
+  margin: 2px 0 6px;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--encre-douce);
+}
+
+.bouton--discret {
+  min-height: 44px;
+  margin-top: 0;
+  font-size: 0.95rem;
+}
+
+.bouton--lien-danger {
+  color: var(--rouge-enluminure);
+}
+
+.case-a-cocher {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.case-a-cocher input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: var(--rouge-enluminure);
+}
+
+.avis {
+  margin: 4px 0 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--or);
+  border-radius: 4px;
+  background: rgba(230, 198, 106, 0.18);
+}
+
+.avis__actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.formulaire__ajouts {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.outils-ligne {
+  display: flex;
+  gap: 2px;
+}
+
+.bouton-ligne {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  color: var(--encre-douce);
+  border-radius: 4px;
+}
+
+.bouton-ligne:disabled {
+  opacity: 0.25;
+}
+
+.bouton-ligne--retirer {
+  font-size: 1.5rem;
+  color: var(--rouge-enluminure);
+}
+
+@media (max-width: 479px) {
+  .ligne-ingredient {
+    grid-template-columns: 3.4em 4.6em 1fr;
+    row-gap: 0;
+  }
+
+  .ligne-ingredient .outils-ligne {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+.formulaire input[aria-invalid='true'] {
+  border-color: var(--rouge-enluminure);
+  background: rgba(140, 42, 28, 0.08);
+}
+
+.texte-legal h3 {
+  margin: 14px 0 4px;
+  font-size: 1.05rem;
+}
+
+.texte-legal p,
+.texte-legal ul {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.texte-legal ul {
+  padding-left: 1.2em;
+}
+
+/* Texte lu par les lecteurs d'écran seulement */
+.lecteur-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

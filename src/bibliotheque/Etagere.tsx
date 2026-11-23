@@ -41,7 +41,7 @@ export function Etagere({ livres, nombreRecettes, surOuvrir, surOuvrirRecette, s
   );
 
   return (
-    <div className="etagere">
+    <main className="etagere">
       <header className="etagere__entete">
         {social.actif && (
           <button type="button" className="bouton-etagere" onClick={surAmis} aria-label="Cercle des amis et courrier">
@@ -115,6 +115,6 @@ export function Etagere({ livres, nombreRecettes, surOuvrir, surOuvrirRecette, s
 
       {edition && <EditeurLivre livre={edition === 'nouveau' ? null : edition} surFermer={() => setEdition(null)} />}
       {compteOuvert && <PanneauCompte surFermer={() => setCompteOuvert(false)} />}
-    </div>
+    </main>
   );
 }

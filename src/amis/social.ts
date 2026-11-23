@@ -227,9 +227,16 @@ export async function chargerActivites(): Promise<Activite[]> {
   }));
 }
 
+/** Durée de conservation du fil d'activité. */
+const CONSERVATION_ACTIVITES = 90 * 24 * 3600 * 1000;
+
 export async function marquerActivitesLues() {
-  const { error } = await client().from('activites').update({ lue: true }).eq('lue', false);
+  const sb = client();
+  const { error } = await sb.from('activites').update({ lue: true }).eq('lue', false);
   verifier(error);
+  // Les vieilles nouvelles (déjà lues) sont effacées
+  const limite = new Date(Date.now() - CONSERVATION_ACTIVITES).toISOString();
+  await sb.from('activites').delete().eq('lue', true).lt('cree_le', limite);
 }
 
 export async function compter(uid: string): Promise<Compteurs> {
@@ -312,25 +319,62 @@ export async function transmettre(
   const { error } = await sb.from('envois').insert({ id: envoiId, type: source.type, titre, contenu });
   verifier(error);
 
-  // 2. Ses photos
-  for (const [i, id] of images.entries()) {
-    progression(`Envoi des photos (${i + 1} / ${images.length})…`);
-    const blob = await depot.lireImage(id);
-    if (!blob) continue; // photo introuvable : la recette part sans elle
-    const envoiPhoto = await sb.storage
-      .from('partages')
-      .upload(`${envoiId}/${id}`, blob, { contentType: blob.type, upsert: false });
-    if (envoiPhoto.error && !/exists|duplicate/i.test(envoiPhoto.error.message)) {
-      throw new Error(traduireErreur(envoiPhoto.error.message));
+  const deposees: string[] = [];
+  try {
+    // 2. Ses photos
+    for (const [i, id] of images.entries()) {
+      progression(`Envoi des photos (${i + 1} / ${images.length})…`);
+      const blob = await depot.lireImage(id);
+      if (!blob) continue; // photo introuvable : la recette part sans elle
+      const chemin = `${envoiId}/${id}`;
+      const envoiPhoto = await sb.storage.from('partages').upload(chemin, blob, { contentType: blob.type, upsert: false });
+      if (envoiPhoto.error && !/exists|duplicate/i.test(envoiPhoto.error.message)) {
+        throw new Error(traduireErreur(envoiPhoto.error.message));
+      }
+      deposees.push(chemin);
     }
-  }
 
-  // 3. Une proposition par ami
-  progression('Remise aux destinataires…');
-  const { error: erreurTransmissions } = await sb
-    .from('transmissions')
-    .insert(destinataires.map((id) => ({ envoi_id: envoiId, destinataire_id: id })));
-  verifier(erreurTransmissions);
+    // 3. Une proposition par ami
+    progression('Remise aux destinataires…');
+    const { error: erreurTransmissions } = await sb
+      .from('transmissions')
+      .insert(destinataires.map((id) => ({ envoi_id: envoiId, destinataire_id: id })));
+    verifier(erreurTransmissions);
+  } catch (erreur) {
+    // Envoi raté : on ne laisse rien traîner dans le cloud
+    if (deposees.length > 0) await sb.storage.from('partages').remove(deposees);
+    await sb.from('envois').delete().eq('id', envoiId);
+    throw erreur;
+  }
+}
+
+/** Délai avant de faire le ménage d'un envoi auquel tous les destinataires ont répondu. */
+const DELAI_NETTOYAGE = 24 * 3600 * 1000;
+
+/**
+ * Ménage des envois de l'utilisateur : quand tous les destinataires ont
+ * répondu (ou qu'il n'y en a aucun), la copie figée et ses photos sont effacées.
+ */
+export async function nettoyerEnvois(uid: string) {
+  const sb = client();
+  const limite = new Date(Date.now() - DELAI_NETTOYAGE).toISOString();
+  const { data, error } = await sb
+    .from('envois')
+    .select('id, transmissions(statut)')
+    .eq('expediteur_id', uid)
+    .lt('cree_le', limite)
+    .limit(50);
+  verifier(error);
+  const termines = (data ?? []).filter((e: any) => !(e.transmissions ?? []).some((t: any) => t.statut === 'proposee'));
+  for (const envoi of termines) {
+    const { data: fichiers } = await sb.storage.from('partages').list(envoi.id, { limit: 1000 });
+    const chemins = (fichiers ?? []).map((f) => `${envoi.id}/${f.name}`);
+    if (chemins.length > 0) {
+      const { error: erreurPhotos } = await sb.storage.from('partages').remove(chemins);
+      if (erreurPhotos) continue; // on réessaiera plus tard
+    }
+    await sb.from('envois').delete().eq('id', envoi.id);
+  }
 }
 
 export async function chargerTransmissionsRecues(uid: string): Promise<TransmissionRecue[]> {
@@ -381,11 +425,12 @@ export async function accepterTransmission(
     const { data } = await sb.storage.from('partages').download(`${transmission.envoiId}/${id}`);
     if (data) images.set(id, data);
   }
-  progression('Rangement dans la bibliothèque…');
-  const livreId = await depot.importer(contenu, images, cible, transmission.expediteurPseudo);
+  // La réponse d'abord : si elle échoue (déjà acceptée sur un autre appareil,
+  // réseau coupé…), rien n'est rangé, et il n'y aura pas de copie en double.
   const { error } = await sb.rpc('repondre_transmission', { p_id: transmission.id, p_accepte: true });
   verifier(error);
-  return livreId;
+  progression('Rangement dans la bibliothèque…');
+  return depot.importer(contenu, images, cible, transmission.expediteurPseudo);
 }
 
 export async function refuserTransmission(id: string) {

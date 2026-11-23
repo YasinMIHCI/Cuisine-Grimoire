@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDepot } from '../donnees/contexte';
 import { usePanneauHistorique } from '../utilitaires/historique';
+import { usePiegeFocus } from '../utilitaires/focus';
 import { partagerTexte, recetteEnTexte } from '../utilitaires/texte';
 import { Avatar } from './Avatar';
 import { useSocial } from './contexte';
@@ -16,6 +17,7 @@ interface Props {
 /** Transmettre un livre ou une recette à un ou plusieurs amis. */
 export function PanneauTransmettre({ source, surFermer, surVoirAmis }: Props) {
   const fermer = usePanneauHistorique(surFermer);
+  const refPiege = usePiegeFocus<HTMLDivElement>(fermer);
   const depot = useDepot();
   const social = useSocial();
   const [amis, setAmis] = useState<MembreCercle[] | null>(null);
@@ -66,7 +68,7 @@ export function PanneauTransmettre({ source, surFermer, surVoirAmis }: Props) {
 
   return (
     <div className="voile" onClick={fermer}>
-      <div className="panneau panneau--defilant parchemin" role="dialog" aria-label="Transmettre" onClick={(e) => e.stopPropagation()}>
+      <div ref={refPiege} className="panneau panneau--defilant parchemin" role="dialog" aria-modal="true" aria-label="Transmettre" onClick={(e) => e.stopPropagation()}>
         <h2 className="recette__section">Transmettre</h2>
         <p className="message">
           {source.type === 'recette'

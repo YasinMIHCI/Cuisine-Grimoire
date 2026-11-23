@@ -2,19 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { Recette } from '../types';
 import { formaterQuantite } from '../utilitaires/format';
 import { usePanneauHistorique } from '../utilitaires/historique';
+import { usePiegeFocus } from '../utilitaires/focus';
 import { ajusterQuantite, partagerTexte } from '../utilitaires/texte';
 import { ImageCollee } from '../composants/ImageCollee';
 import { demanderTexte, informer } from '../composants/Dialogues';
-import { formaterCompte, sonner, trouverDurees } from './minuteurs';
+import { trouverDurees } from './minuteurs';
+import { lancerMinuteur, preparerSon } from './minuteursEnCours';
+import { ListeMinuteurs } from './BandeauMinuteurs';
 import './cuisine.css';
-
-interface Minuteur {
-  id: string;
-  libelle: string;
-  /** Instant de fin (ms). */
-  fin: number;
-  sonne: boolean;
-}
 
 interface Props {
   recette: Recette;
@@ -25,16 +20,15 @@ interface Props {
 /**
  * Mode cuisine : écran maintenu allumé, texte agrandi, une étape à la fois.
  * La première page liste les ingrédients (à cocher) ; les durées écrites dans
- * les étapes deviennent des minuteurs d'un simple toucher.
+ * les étapes deviennent des minuteurs d'un simple toucher. Les minuteurs
+ * continuent après la fermeture du mode cuisine (voir minuteursEnCours.ts).
  */
 export function ModeCuisine({ recette, portions, surFermer }: Props) {
   const fermer = usePanneauHistorique(surFermer);
+  const refPiege = usePiegeFocus<HTMLDivElement>(fermer);
   const [page, setPage] = useState(0); // 0 : ingrédients, 1…n : étapes, n+1 : fin
   const [coches, setCoches] = useState<Set<number>>(new Set());
-  const [minuteurs, setMinuteurs] = useState<Minuteur[]>([]);
-  const [maintenant, setMaintenant] = useState(Date.now());
   const [ecranAllume, setEcranAllume] = useState(false);
-  const refAudio = useRef<AudioContext | null>(null);
   const derniere = recette.etapes.length + 1;
   const facteur = portions / recette.portions;
 
@@ -60,50 +54,30 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
       actif = false;
       document.removeEventListener('visibilitychange', auRetour);
       void verrou?.release();
-      void refAudio.current?.close();
     };
   }, []);
 
-  // --- Minuteurs : on recalcule chaque seconde à partir de l'heure de fin
-  useEffect(() => {
-    if (minuteurs.length === 0) return;
-    const tic = setInterval(() => {
-      const t = Date.now();
-      setMaintenant(t);
-      setMinuteurs((liste) => {
-        if (!liste.some((m) => !m.sonne && m.fin <= t)) return liste;
-        sonner(refAudio.current);
-        navigator.vibrate?.([400, 200, 400, 200, 400]);
-        return liste.map((m) => (m.fin <= t ? { ...m, sonne: true } : m));
-      });
-    }, 1000);
-    return () => clearInterval(tic);
-  }, [minuteurs.length]);
-
-  const lancerMinuteur = (libelle: string, secondes: number) => {
-    // Le son doit être « débloqué » par un geste de l'utilisateur : c'est le moment
-    refAudio.current ??= new AudioContext();
-    void refAudio.current.resume();
-    setMaintenant(Date.now());
-    setMinuteurs((liste) => [...liste, { id: crypto.randomUUID(), libelle, fin: Date.now() + secondes * 1000, sonne: false }]);
-  };
-
   const minuteurLibre = async () => {
     // Le son est débloqué tout de suite : après le dialogue, ce ne serait plus un geste direct
-    refAudio.current ??= new AudioContext();
-    void refAudio.current.resume();
+    preparerSon();
     const reponse = await demanderTexte('Durée du minuteur, en minutes :', { valeur: '10', numerique: true, oui: 'Lancer' });
     const minutes = reponse ? parseFloat(reponse.replace(',', '.')) : NaN;
-    if (minutes > 0) lancerMinuteur(`${formaterQuantite(minutes)} min`, minutes * 60);
+    if (minutes > 0 && minutes <= 48 * 60) lancerMinuteur(recette.titre, `${formaterQuantite(minutes)} min`, minutes * 60);
   };
 
   const aller = (pas: number) => setPage((p) => Math.min(derniere, Math.max(0, p + pas)));
 
-  // Clavier (PC) et gestes
+  // Clavier (PC) et gestes. (Échap referme : voir usePiegeFocus.)
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') aller(1);
-      else if (e.key === 'ArrowLeft') aller(-1);
+      // Espace sur un bouton ou une case à cocher : c'est à eux de réagir
+      const cible = e.target as Element;
+      if (cible.closest('button, input, textarea, select') && e.key === ' ') return;
+      if (document.querySelector('.voile--dialogue')) return; // un dialogue est ouvert
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        aller(1);
+      } else if (e.key === 'ArrowLeft') aller(-1);
     };
     window.addEventListener('keydown', surTouche);
     return () => window.removeEventListener('keydown', surTouche);
@@ -121,8 +95,10 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
 
   return (
     <div
+      ref={refPiege}
       className="cuisine"
       role="dialog"
+      aria-modal="true"
       aria-label={`Mode cuisine : ${recette.titre}`}
       onPointerDown={(e) => {
         depart.current = (e.target as Element).closest('button, input, label') ? null : e.clientX;
@@ -142,28 +118,12 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
           <span>{recette.titre}</span>
           <small>{ecranAllume ? 'Écran maintenu allumé' : 'Mode cuisine'}</small>
         </div>
-        <button type="button" className="cuisine__minuteur-libre" onClick={minuteurLibre}>
+        <button type="button" className="cuisine__minuteur-libre" onClick={() => void minuteurLibre()}>
           + Minuteur
         </button>
       </header>
 
-      {minuteurs.length > 0 && (
-        <ul className="cuisine__minuteurs">
-          {minuteurs.map((m) => (
-            <li key={m.id} className={m.sonne ? 'minuteur minuteur--fini' : 'minuteur'}>
-              <span>{m.libelle}</span>
-              <strong>{m.sonne ? 'Terminé !' : formaterCompte((m.fin - maintenant) / 1000)}</strong>
-              <button
-                type="button"
-                aria-label="Arrêter ce minuteur"
-                onClick={() => setMinuteurs((liste) => liste.filter((x) => x.id !== m.id))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ListeMinuteurs />
 
       {/* Barre de progression */}
       <div className="cuisine__progression" aria-hidden="true">
@@ -210,7 +170,7 @@ export function ModeCuisine({ recette, portions, surFermer }: Props) {
             </h2>
             <p className="cuisine__texte">{etape.texte}</p>
             {trouverDurees(etape.texte).map((d, i) => (
-              <button key={i} type="button" className="bouton cuisine__duree" onClick={() => lancerMinuteur(`Étape ${page} · ${d.libelle}`, d.secondes)}>
+              <button key={i} type="button" className="bouton cuisine__duree" onClick={() => lancerMinuteur(recette.titre, `Étape ${page} · ${d.libelle}`, d.secondes)}>
                 ⏱ Minuteur : {d.libelle}
               </button>
             ))}
