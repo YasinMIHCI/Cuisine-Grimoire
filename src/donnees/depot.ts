@@ -103,6 +103,25 @@ const ligneVersRecette = (x: any): Recette => ({
 const maintenant = () => new Date().toISOString();
 const dateDe = (iso: string) => Date.parse(iso);
 
+/** Texte stable d'une valeur : clés triées, champs vides (null, undefined) ignorés. */
+function texteStable(valeur: unknown): string {
+  if (Array.isArray(valeur)) return `[${valeur.map(texteStable).join(',')}]`;
+  if (valeur && typeof valeur === 'object') {
+    const champs = Object.entries(valeur)
+      .filter(([, v]) => v !== null && v !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return `{${champs.map(([k, v]) => `${JSON.stringify(k)}:${texteStable(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(valeur);
+}
+
+/** Compare deux versions d'une ligne, sans tenir compte de l'ordre des champs ni des marques locales. */
+export function memeContenu(a: Synchronisable, b: Synchronisable): boolean {
+  const { aSynchroniser: _a, ...x } = a;
+  const { aSynchroniser: _b, ...y } = b;
+  return texteStable(x) === texteStable(y);
+}
+
 /** Nombre de lignes demandées par requête (Supabase en renvoie 1000 au plus). */
 const TAILLE_PAGE = 500;
 /** Une synchronisation complète (qui détecte aussi les lignes effacées) au moins une fois par jour. */
@@ -646,7 +665,9 @@ export class Depot {
       const local = carte.get(distant.id);
       // Une modification locale non envoyée et plus récente est conservée
       if (local?.aSynchroniser && dateDe(local.modifieLe) >= dateDe(distant.modifieLe)) continue;
-      if (!local || dateDe(distant.modifieLe) !== dateDe(local.modifieLe) || local.aSynchroniser) {
+      // Sinon, la version du cloud fait foi dès qu'elle diffère (même à date égale :
+      // deux appareils peuvent écrire dans la même milliseconde)
+      if (!local || local.aSynchroniser || !memeContenu(local, distant)) {
         await this.stocker(magasin, carte, distant);
       }
     }

@@ -71,7 +71,7 @@ vi.mock('./supabase', () => ({
   },
 }));
 
-const { Depot } = await import('./depot');
+const { Depot, memeContenu } = await import('./depot');
 
 const UID = 'compte-1';
 let numeroBase = 0;
@@ -208,5 +208,17 @@ describe('synchronisation', () => {
     await d.abandonnerImages([gardee, abandonnee]);
     expect(await d.lireImage(gardee)).not.toBeNull();
     expect(await d.lireImage(abandonnee)).toBeNull();
+  });
+});
+
+describe('memeContenu', () => {
+  const base = { id: 'x', proprietaireId: 'u', creeLe: 'a', modifieLe: 'b' };
+  it('ignore l’ordre des champs, les champs vides et la marque locale', () => {
+    expect(memeContenu({ ...base, supprimeLe: null, aSynchroniser: true }, { modifieLe: 'b', creeLe: 'a', proprietaireId: 'u', id: 'x' })).toBe(true);
+  });
+  it('voit une différence dans un champ imbriqué', () => {
+    const a = { ...base, ingredients: [{ quantite: 1, unite: 'g', nom: 'sel' }] };
+    const b = { ...base, ingredients: [{ quantite: 2, unite: 'g', nom: 'sel' }] };
+    expect(memeContenu(a, b)).toBe(false);
   });
 });
